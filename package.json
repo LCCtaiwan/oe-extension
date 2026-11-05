@@ -1,6 +1,6 @@
 {
 	"name": "oe-extension",
-	"version": "0.1.8",
+	"version": "0.1.9",
 	"description": "Chrome extension for opening selected clinical text in OpenEvidence and rewriting selections into evidence-focused questions.",
 	"license": "MIT",
 	"type": "module",

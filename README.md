@@ -29,6 +29,7 @@ to OpenEvidence.
 - Custom prompt buttons with user-defined names and prompt instructions.
 - Editable LLM output panel with `Copy`, `Ask OpenEvidence`, and `Close`.
 - NCCN guideline PDF links on OpenEvidence redirected to your own viewer, in a tab and in the side pane alike.
+- Hospital formulary (院內品項) lookup: import your drug list, then check whether a selected drug is stocked and which in-house items share its ingredient or mechanism (ATC).
 - Light, dark, or system appearance modes.
 - No runtime framework, no remote UI dependencies.
 
@@ -103,6 +104,29 @@ Configure it under `Settings` in the options page:
 
 `file://` templates need `Allow access to file URLs` enabled, as described under
 [Local PDF Support](#local-pdf-support).
+
+## Hospital Formulary (院內品項)
+
+Import your hospital's drug list under the `院內品項` tab in the options page
+(`.xlsx` or `.csv`; XLSX reads the first sheet, CSV may be UTF-8 or Big5). The
+header row needs a `藥名` column; `批價碼`, `ATC碼`, `藥理代碼`, `劑型`, `健保價`,
+`自費價`, and storage columns such as `P1儲位` / `藥庫` are used when present.
+
+After import, the selection toolbar shows a `院內` button. It lists:
+
+- **院內有此藥** &mdash; items matched by generic name, brand name (English or
+  Chinese), or billing code;
+- **同成分其他品項** &mdash; other items with the same 7-character ATC code;
+- **同機轉** &mdash; items sharing the 5-character ATC chemical subgroup
+  (e.g. `C10AA` statins, `A10BK` SGLT2 inhibitors).
+
+Click a billing code to copy it. When nothing matches by name and a Groq key is
+validated, the extension asks Groq for the drug's ATC code and still lists
+same-mechanism in-house items, labelled as an AI guess to verify.
+
+The list stays in `chrome.storage.local` on this computer; it is never synced
+or uploaded. Only the selected text is sent to Groq, and only for the AI
+fallback.
 
 ## Groq BYOK
 

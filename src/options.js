@@ -51,6 +51,12 @@ const historyPanel = document.querySelector("#tab-history");
 const historyList = document.querySelector("#history-list");
 const historyEmpty = document.querySelector("#history-empty");
 const clearHistoryButton = document.querySelector("#clear-history");
+const formularyPanel = document.querySelector("#tab-formulary");
+const formularyFileInput = document.querySelector("#formulary-file");
+const clearFormularyButton = document.querySelector("#clear-formulary");
+const formularyStatus = document.querySelector("#formulary-status");
+const formularyQueryInput = document.querySelector("#formulary-query");
+const formularyResults = document.querySelector("#formulary-results");
 
 function createLucideIcon(name) {
 	const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
@@ -385,13 +391,17 @@ function activateTab(name) {
 		button.setAttribute("aria-selected", isActive ? "true" : "false");
 	});
 
-	optionsForm.hidden = name === "history";
+	optionsForm.hidden = name === "history" || name === "formulary";
 	settingsPanel.hidden = name !== "settings";
 	promptsPanel.hidden = name !== "prompts";
 	historyPanel.hidden = name !== "history";
+	formularyPanel.hidden = name !== "formulary";
 
 	if (name === "history") {
 		loadHistory();
+	}
+	if (name === "formulary") {
+		loadFormularyStatus();
 	}
 }
 
@@ -525,6 +535,161 @@ clearHistoryButton.addEventListener("click", async () => {
 	loadHistory();
 });
 
+// ---------------------------------------------------------------- formulary
+
+const FIELD_LABELS = {
+	code: "批價碼",
+	atc: "ATC碼",
+	pharm: "藥理代碼",
+	form: "劑型",
+	nhiPrice: "健保價",
+	selfPrice: "自費價",
+};
+let formularyIndex = null;
+
+function setFormularyStatus(message, state = "") {
+	formularyStatus.textContent = message;
+	formularyStatus.dataset.state = state;
+}
+
+function describeFormularyMeta(meta) {
+	if (!meta?.count) {
+		return "尚未匯入院內品項。";
+	}
+	const when = meta.importedAt ? formatTimestamp(meta.importedAt) : "";
+	let text = `已匯入 ${meta.count} 項（${meta.withAtc ?? 0} 項有 ATC 碼）`;
+	if (meta.fileName) {
+		text += ` · ${meta.fileName}`;
+	}
+	if (when) {
+		text += ` · ${when}`;
+	}
+	if (Array.isArray(meta.missingColumns) && meta.missingColumns.length > 0) {
+		const missing = meta.missingColumns
+			.map((field) => FIELD_LABELS[field])
+			.filter(Boolean);
+		if (missing.length > 0) {
+			text += `。找不到欄位：${missing.join("、")}`;
+		}
+	}
+	return text;
+}
+
+async function loadFormularyStatus() {
+	const stored = await chrome.storage.local.get({
+		[OEFormulary.FORMULARY_ITEMS_STORAGE_KEY]: [],
+		[OEFormulary.FORMULARY_META_STORAGE_KEY]: null,
+	});
+	const meta = stored[OEFormulary.FORMULARY_META_STORAGE_KEY];
+	formularyIndex = OEFormulary.createIndex(
+		stored[OEFormulary.FORMULARY_ITEMS_STORAGE_KEY],
+	);
+	setFormularyStatus(describeFormularyMeta(meta), meta?.count ? "success" : "");
+	clearFormularyButton.disabled = !meta?.count;
+	renderFormularyTest();
+}
+
+function createFormularyResultGroup(title, items) {
+	const group = document.createElement("div");
+	group.className = "formulary-group";
+	const heading = document.createElement("h3");
+	heading.textContent = `${title}（${items.length}）`;
+	const list = document.createElement("ul");
+	items.forEach((item) => {
+		const row = document.createElement("li");
+		const name = document.createElement("span");
+		name.className = "formulary-name";
+		name.textContent = item.name;
+		const meta = document.createElement("span");
+		meta.className = "formulary-meta";
+		meta.textContent = [
+			item.code,
+			item.atc && `ATC ${item.atc}`,
+			item.form && OEFormulary.formLabel(item.form),
+		]
+			.filter(Boolean)
+			.join(" · ");
+		row.append(name, meta);
+		list.append(row);
+	});
+	group.append(heading, list);
+	return group;
+}
+
+function renderFormularyTest() {
+	formularyResults.textContent = "";
+	const query = formularyQueryInput.value.trim();
+	if (!query || !formularyIndex?.items.length) {
+		return;
+	}
+
+	const result = OEFormulary.lookup(formularyIndex, query);
+	if (result.direct.length === 0) {
+		const empty = document.createElement("p");
+		empty.textContent =
+			"院內沒有符合的品項。（在網頁上使用「院內」按鈕時，若有設定 Groq key，會再用 AI 推測 ATC 找同機轉品項。）";
+		formularyResults.append(empty);
+		return;
+	}
+
+	formularyResults.append(
+		createFormularyResultGroup("院內有此藥", result.direct),
+	);
+	if (result.sameIngredient.length > 0) {
+		formularyResults.append(
+			createFormularyResultGroup("同成分其他品項", result.sameIngredient),
+		);
+	}
+	result.classes.forEach((group) => {
+		formularyResults.append(
+			createFormularyResultGroup(`同機轉 · ATC ${group.atcClass}`, group.items),
+		);
+	});
+}
+
+formularyFileInput.addEventListener("change", async () => {
+	const file = formularyFileInput.files?.[0];
+	if (!file) {
+		return;
+	}
+
+	setFormularyStatus(`正在讀取 ${file.name}…`);
+	try {
+		const parsed = await OEFormulary.parseFormularyFile(
+			file.name,
+			await file.arrayBuffer(),
+		);
+		if (parsed.items.length === 0) {
+			throw new Error("檔案裡沒有任何品項");
+		}
+		await chrome.storage.local.set({
+			[OEFormulary.FORMULARY_ITEMS_STORAGE_KEY]: parsed.items,
+			[OEFormulary.FORMULARY_META_STORAGE_KEY]: {
+				count: parsed.items.length,
+				withAtc: parsed.withAtc,
+				missingColumns: parsed.missingColumns,
+				fileName: file.name,
+				importedAt: Date.now(),
+			},
+		});
+		await loadFormularyStatus();
+	} catch (error) {
+		setFormularyStatus(`匯入失敗：${error.message}`, "error");
+	} finally {
+		formularyFileInput.value = "";
+	}
+});
+
+clearFormularyButton.addEventListener("click", async () => {
+	await chrome.storage.local.remove([
+		OEFormulary.FORMULARY_ITEMS_STORAGE_KEY,
+		OEFormulary.FORMULARY_META_STORAGE_KEY,
+	]);
+	await loadFormularyStatus();
+});
+
+formularyQueryInput.addEventListener("input", renderFormularyTest);
+
 window
 	.matchMedia?.("(prefers-color-scheme: dark)")
 	.addEventListener("change", () => {
@@ -542,3 +707,4 @@ setButtonIcon(addCustomPromptButton, "plus");
 setButtonIcon(form.querySelector('button[type="submit"]'), "save");
 setButtonIcon(resetButton, "x");
 setButtonIcon(clearHistoryButton, "trash");
+setButtonIcon(clearFormularyButton, "trash");

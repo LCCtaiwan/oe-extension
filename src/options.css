@@ -126,6 +126,7 @@ textarea:focus {
 
 input[type="password"],
 input[type="text"],
+input[type="search"],
 select {
 	min-width: 0;
 	min-height: 34px;
@@ -140,6 +141,7 @@ select {
 
 input[type="password"]:focus,
 input[type="text"]:focus,
+input[type="search"]:focus,
 select:focus {
 	outline: 2px solid var(--oe-focus);
 	outline-offset: 2px;
@@ -234,12 +236,18 @@ button[type="button"]:hover {
 	min-height: 20px;
 }
 
-#groq-status[data-state="success"] {
+#formulary-status {
+	min-height: 20px;
+}
+
+#groq-status[data-state="success"],
+#formulary-status[data-state="success"] {
 	color: #18763b;
 	font-weight: 700;
 }
 
-#groq-status[data-state="error"] {
+#groq-status[data-state="error"],
+#formulary-status[data-state="error"] {
 	color: #a33116;
 	font-weight: 700;
 }
@@ -404,6 +412,55 @@ form[hidden] {
 	font-size: 13px;
 	white-space: pre-wrap;
 	word-break: break-word;
+}
+
+.formulary-file-row {
+	grid-template-columns: 1fr auto;
+}
+
+input[type="file"] {
+	min-width: 0;
+	color: var(--oe-fg);
+	font: 14px / 1.4 system-ui, sans-serif;
+}
+
+.formulary-results {
+	display: grid;
+	gap: 14px;
+	margin-top: 10px;
+}
+
+.formulary-group h3 {
+	margin: 0 0 6px;
+	font-size: 14px;
+}
+
+.formulary-group ul {
+	display: grid;
+	gap: 4px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.formulary-group li {
+	display: grid;
+	gap: 2px;
+	border: 1px solid var(--oe-border-soft);
+	border-radius: 6px;
+	padding: 6px 10px;
+	background: var(--oe-bg);
+}
+
+.formulary-name {
+	font-size: 14px;
+	font-weight: 600;
+	overflow-wrap: anywhere;
+}
+
+.formulary-meta {
+	color: var(--oe-muted);
+	font-size: 12px;
 }
 
 @media (max-width: 640px) {

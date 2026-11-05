@@ -2,6 +2,7 @@ const STORAGE_KEY = "oeWhitelist";
 const CUSTOM_PROMPTS_STORAGE_KEY = "oeCustomPrompts";
 const THEME_STORAGE_KEY = "oeTheme";
 const GROQ_VALIDATED_STORAGE_KEY = "oeGroqApiKeyValidated";
+const FORMULARY_META_STORAGE_KEY = "oeFormularyMeta";
 const DEFAULT_WHITELIST = [
   "https://ankiuser.net/study",
   "https://www.openevidence.com/*",
@@ -14,6 +15,7 @@ const DEFAULT_WHITELIST = [
 const BUTTON_WIDTH = 154;
 const UPTODATE_BUTTON_WIDTH = 110;
 const GOOGLE_BUTTON_WIDTH = 96;
+const FORMULARY_BUTTON_WIDTH = 76;
 const CLOSE_BUTTON_WIDTH = 34;
 const PICO_BUTTON_WIDTH = 62;
 const CUSTOM_BUTTON_WIDTH = 96;
@@ -24,6 +26,7 @@ const DEFAULT_THEME = "system";
 
 let whitelist = DEFAULT_WHITELIST;
 let groqKeyValidated = false;
+let formularyReady = false;
 let customPrompts = [];
 let theme = DEFAULT_THEME;
 let toolbar = null;
@@ -88,10 +91,18 @@ function loadWhitelist() {
   );
 }
 
+function isFormularyMetaReady(meta) {
+  return Number.isInteger(meta?.count) && meta.count > 0;
+}
+
 function loadGroqStatus() {
-  chrome.storage.local.get({ [GROQ_VALIDATED_STORAGE_KEY]: false }, (items) => {
-    groqKeyValidated = items[GROQ_VALIDATED_STORAGE_KEY] === true;
-  });
+  chrome.storage.local.get(
+    { [GROQ_VALIDATED_STORAGE_KEY]: false, [FORMULARY_META_STORAGE_KEY]: null },
+    (items) => {
+      groqKeyValidated = items[GROQ_VALIDATED_STORAGE_KEY] === true;
+      formularyReady = isFormularyMetaReady(items[FORMULARY_META_STORAGE_KEY]);
+    }
+  );
 }
 
 function removeButton() {
@@ -187,6 +198,7 @@ function getButtonPosition() {
         UPTODATE_BUTTON_WIDTH +
         BUTTON_GAP +
         GOOGLE_BUTTON_WIDTH +
+        (formularyReady ? BUTTON_GAP + FORMULARY_BUTTON_WIDTH : 0) +
         (groqKeyValidated ? BUTTON_GAP + PICO_BUTTON_WIDTH : 0) +
         customButtonCount * (BUTTON_GAP + CUSTOM_BUTTON_WIDTH) +
         BUTTON_GAP +
@@ -219,7 +231,14 @@ function getPanelPosition() {
     window.innerHeight - 260 - VIEWPORT_MARGIN
   );
 
-  return { left, top, width: panelWidth };
+  return { left, top, width: panelWidth, maxHeight: Math.max(240, window.innerHeight - top - VIEWPORT_MARGIN) };
+}
+
+function placeResultPanel(position) {
+  resultPanel.style.left = `${position.left}px`;
+  resultPanel.style.top = `${position.top}px`;
+  resultPanel.style.width = `${position.width}px`;
+  resultPanel.style.maxHeight = `${position.maxHeight}px`;
 }
 
 function openQuery(query, meta) {
@@ -317,6 +336,9 @@ function getButtonIconName(text) {
   if (normalized === "google") {
     return "globe";
   }
+  if (normalized === "院內") {
+    return "pill";
+  }
   if (normalized === "reload") {
     return "rotate-cw";
   }
@@ -353,6 +375,10 @@ function createLucideIcon(name) {
     "book-open": [
       '<path d="M12 7v14"/>',
       '<path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/>'
+    ],
+    pill: [
+      '<path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"/>',
+      '<path d="m8.5 8.5 7 7"/>'
     ],
     globe: [
       '<circle cx="12" cy="12" r="10"/>',
@@ -454,6 +480,22 @@ function ensureToolbar() {
 
   toolbar.appendChild(googleButton);
 
+  if (formularyReady) {
+    const formularyButton = makeToolbarButton(
+      "oe-selection-button oe-selection-button--formulary",
+      "院內",
+      "院內品項：是否有此藥、同成分與同機轉品項"
+    );
+
+    formularyButton.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      lookupFormulary();
+    });
+
+    toolbar.appendChild(formularyButton);
+  }
+
   if (groqKeyValidated) {
     const picoButton = makeToolbarButton(
       "oe-selection-button oe-selection-button--pico",
@@ -522,7 +564,7 @@ function renderPicoSkeleton() {
   `;
 }
 
-function ensureResultPanel() {
+function ensureResultPanel(variant) {
   removeResultPanel();
 
   const position = getPanelPosition();
@@ -531,11 +573,9 @@ function ensureResultPanel() {
   }
 
   resultPanel = document.createElement("div");
-  resultPanel.className = "oe-pico-panel";
+  resultPanel.className = variant ? `oe-pico-panel oe-pico-panel--${variant}` : "oe-pico-panel";
   applyTheme(resultPanel);
-  resultPanel.style.left = `${position.left}px`;
-  resultPanel.style.top = `${position.top}px`;
-  resultPanel.style.width = `${position.width}px`;
+  placeResultPanel(position);
   renderPicoSkeleton();
 
   resultPanel.addEventListener("mousedown", (event) => {
@@ -744,6 +784,198 @@ function generateCustomPrompt(customPrompt) {
   );
 }
 
+// ------------------------------------------------------------ formulary panel
+
+const FORM_LABELS = { O: "口服", I: "注射", E: "外用" };
+
+function makeFormularyChip(text, className = "") {
+  const chip = document.createElement("span");
+  chip.className = `oe-formulary-chip ${className}`.trim();
+  chip.textContent = text;
+  return chip;
+}
+
+function createFormularyItem(item) {
+  const row = document.createElement("li");
+  row.className = "oe-formulary-item";
+
+  const name = document.createElement("div");
+  name.className = "oe-formulary-item__name";
+  name.textContent = item.name;
+
+  const meta = document.createElement("div");
+  meta.className = "oe-formulary-item__meta";
+
+  if (item.code) {
+    // Click the billing code to copy it for ordering.
+    const code = document.createElement("button");
+    code.type = "button";
+    code.className = "oe-formulary-chip oe-formulary-chip--code";
+    code.textContent = item.code;
+    code.title = "複製批價碼";
+    code.addEventListener("mousedown", (event) => event.preventDefault());
+    code.addEventListener("click", async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      try {
+        await navigator.clipboard.writeText(item.code);
+        code.textContent = "已複製";
+      } catch (_error) {
+        code.textContent = item.code;
+        return;
+      }
+      window.setTimeout(() => {
+        code.textContent = item.code;
+      }, 1200);
+    });
+    meta.append(code);
+  }
+  if (item.atc) {
+    meta.append(makeFormularyChip(`ATC ${item.atc}`));
+  }
+  if (item.form) {
+    meta.append(makeFormularyChip(FORM_LABELS[item.form] || item.form));
+  }
+  const prices = [];
+  if (item.nhiPrice && item.nhiPrice !== "0") {
+    prices.push(`健保 ${item.nhiPrice}`);
+  }
+  if (item.selfPrice && item.selfPrice !== "0") {
+    prices.push(`自費 ${item.selfPrice}`);
+  }
+  if (prices.length > 0) {
+    meta.append(makeFormularyChip(prices.join(" · ")));
+  }
+  if (Array.isArray(item.locations) && item.locations.length > 0) {
+    meta.append(
+      makeFormularyChip(
+        item.locations.map(([label, value]) => `${label.replace(/儲位$/, "")} ${value}`).join(" · "),
+        "oe-formulary-chip--muted"
+      )
+    );
+  }
+
+  row.append(name, meta);
+  return row;
+}
+
+function createFormularySection(title, items, note) {
+  const section = document.createElement("section");
+  section.className = "oe-formulary-section";
+
+  const heading = document.createElement("h3");
+  heading.className = "oe-formulary-section__title";
+  heading.textContent = `${title}（${items.length}）`;
+  section.append(heading);
+
+  if (note) {
+    const hint = document.createElement("p");
+    hint.className = "oe-formulary-note";
+    hint.textContent = note;
+    section.append(hint);
+  }
+
+  const list = document.createElement("ul");
+  list.className = "oe-formulary-list";
+  items.forEach((item) => list.append(createFormularyItem(item)));
+  section.append(list);
+  return section;
+}
+
+function renderFormularyResult(result) {
+  if (!resultPanel) {
+    return;
+  }
+
+  resultPanel.innerHTML = "";
+  const body = document.createElement("div");
+  body.className = "oe-formulary-body";
+
+  const shortQuery = result.query.length > 60 ? `${result.query.slice(0, 60)}…` : result.query;
+
+  if (result.direct.length > 0) {
+    body.append(createFormularySection("院內有此藥", result.direct));
+  } else {
+    const missing = document.createElement("p");
+    missing.className = "oe-formulary-empty";
+    missing.textContent = `院內沒有符合「${shortQuery}」的品項。`;
+    body.append(missing);
+
+    if (Array.isArray(result.aiGuesses) && result.aiGuesses.length > 0) {
+      const guess = document.createElement("p");
+      guess.className = "oe-formulary-note oe-formulary-note--ai";
+      guess.textContent = `AI 推測 ATC：${result.aiGuesses
+        .map((drug) => `${drug.name} → ${drug.atc}`)
+        .join("、")}（請自行確認）`;
+      body.append(guess);
+    } else if (result.aiError) {
+      const error = document.createElement("p");
+      error.className = "oe-formulary-note";
+      error.textContent = `AI 查詢 ATC 失敗：${result.aiError}`;
+      body.append(error);
+    } else if (result.aiAvailable === false) {
+      const hint = document.createElement("p");
+      hint.className = "oe-formulary-note";
+      hint.textContent = "設定 Groq API key 後，院內沒有的藥也能用 AI 推測 ATC，列出同機轉的院內品項。";
+      body.append(hint);
+    }
+  }
+
+  if (result.sameIngredient.length > 0) {
+    body.append(createFormularySection("同成分其他品項", result.sameIngredient, "ATC 7 碼相同"));
+  }
+
+  result.classes.forEach((group) => {
+    body.append(createFormularySection(`同機轉 · ATC ${group.atcClass}`, group.items, "ATC 前 5 碼相同（同一化學／藥理次分類）"));
+  });
+
+  if (result.direct.length === 0 && result.sameIngredient.length === 0 && result.classes.length === 0 && result.aiGuesses?.length) {
+    const none = document.createElement("p");
+    none.className = "oe-formulary-empty";
+    none.textContent = "院內也沒有同成分或同機轉的品項。";
+    body.append(none);
+  }
+
+  const actions = document.createElement("div");
+  actions.className = "oe-pico-panel__actions";
+  const closeButton = makeToolbarButton("oe-pico-panel__button", "Close", "Close formulary results");
+  closeButton.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    removeResultPanel();
+  });
+  actions.append(closeButton);
+
+  resultPanel.append(body, actions);
+}
+
+function lookupFormulary() {
+  const selection = selectedText || getSelectionText();
+  removeButton();
+  if (!selection) {
+    return;
+  }
+
+  const panel = ensureResultPanel("formulary");
+  if (!panel) {
+    return;
+  }
+
+  chrome.runtime.sendMessage({ type: "OE_FORMULARY_LOOKUP", query: selection }, (response) => {
+    if (chrome.runtime.lastError) {
+      renderPicoError(chrome.runtime.lastError.message);
+      return;
+    }
+
+    if (!response?.ok) {
+      renderPicoError(response?.error || "院內品項查詢失敗");
+      return;
+    }
+
+    renderFormularyResult(response.result);
+  });
+}
+
 function showButton() {
   if (!isWhitelisted(window.location.href, whitelist)) {
     removeButton();
@@ -784,9 +1016,7 @@ function repositionUi() {
   if (resultPanel) {
     const position = getPanelPosition();
     if (position) {
-      resultPanel.style.left = `${position.left}px`;
-      resultPanel.style.top = `${position.top}px`;
-      resultPanel.style.width = `${position.width}px`;
+      placeResultPanel(position);
     }
   }
 }
@@ -862,6 +1092,11 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
 
   if (areaName === "local" && changes[GROQ_VALIDATED_STORAGE_KEY]) {
     groqKeyValidated = changes[GROQ_VALIDATED_STORAGE_KEY].newValue === true;
+    removeButtonImmediately();
+  }
+
+  if (areaName === "local" && changes[FORMULARY_META_STORAGE_KEY]) {
+    formularyReady = isFormularyMetaReady(changes[FORMULARY_META_STORAGE_KEY].newValue);
     removeButtonImmediately();
   }
 });

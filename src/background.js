@@ -1,3 +1,6 @@
+// Shared formulary parser/matcher; exposes self.OEFormulary.
+importScripts("formulary.js");
+
 const DEFAULT_WHITELIST = [
 	"https://ankiuser.net/study",
 	"https://www.openevidence.com/*",
@@ -302,6 +305,94 @@ async function callGroq(apiKey, messages, options = {}) {
 	}
 }
 
+// ---------------------------------------------------------------- formulary
+
+// The parsed list lives in storage.local; the keyword index is rebuilt lazily
+// and dropped whenever a new list is imported or the list is cleared.
+let formularyIndexPromise = null;
+
+function getFormularyIndex() {
+	if (!formularyIndexPromise) {
+		formularyIndexPromise = chrome.storage.local
+			.get({ [OEFormulary.FORMULARY_ITEMS_STORAGE_KEY]: [] })
+			.then((items) =>
+				OEFormulary.createIndex(items[OEFormulary.FORMULARY_ITEMS_STORAGE_KEY]),
+			);
+	}
+	return formularyIndexPromise;
+}
+
+const ATC_GUESS_INSTRUCTION = `Identify the medications named in the text below (generic or brand names, any language). For each, give its generic name and its WHO ATC code at the most specific level you are confident of (prefer the 7-character code). Ignore anything that is not a medication.
+
+Export as JSON:
+{"drugs":[{"name":"empagliflozin","atc":"A10BK03"}]}
+If there are none, export {"drugs":[]}.`;
+
+// Asks Groq for ATC codes of drugs in the selection. Only used when nothing in
+// the formulary matched by name, to still surface same-mechanism alternatives.
+async function guessAtcCodes(apiKey, text) {
+	const content = await callGroq(
+		apiKey,
+		`${ATC_GUESS_INSTRUCTION}\n\n+++text+++\n${text.slice(0, 2000)}`,
+		{ jsonMode: true },
+	);
+	let parsed;
+	try {
+		parsed = JSON.parse(content);
+	} catch (_error) {
+		return [];
+	}
+	const drugs = Array.isArray(parsed?.drugs) ? parsed.drugs : [];
+	return drugs
+		.map((drug) => ({
+			name: typeof drug?.name === "string" ? drug.name.trim().slice(0, 80) : "",
+			atc: OEFormulary.normalizeAtc(drug?.atc),
+		}))
+		.filter((drug) => drug.name && drug.atc)
+		.slice(0, 5);
+}
+
+async function lookupFormulary(query) {
+	const text = typeof query === "string" ? query.trim() : "";
+	if (!text) {
+		throw new Error("Selection is required");
+	}
+
+	const index = await getFormularyIndex();
+	if (index.items.length === 0) {
+		throw new Error("尚未匯入院內品項，請先到設定頁的 Formulary 分頁匯入");
+	}
+
+	const result = OEFormulary.lookup(index, text);
+	if (result.direct.length > 0) {
+		return result;
+	}
+
+	const local = await chrome.storage.local.get({
+		[GROQ_API_KEY_STORAGE_KEY]: "",
+		[GROQ_VALIDATED_STORAGE_KEY]: false,
+	});
+	const apiKey = local[GROQ_API_KEY_STORAGE_KEY];
+	if (!apiKey || local[GROQ_VALIDATED_STORAGE_KEY] !== true) {
+		return { ...result, aiAvailable: false };
+	}
+
+	try {
+		const guesses = await guessAtcCodes(apiKey, text);
+		return {
+			...result,
+			aiAvailable: true,
+			aiGuesses: guesses,
+			...OEFormulary.lookupByAtc(
+				index,
+				guesses.map((guess) => guess.atc),
+			),
+		};
+	} catch (error) {
+		return { ...result, aiAvailable: true, aiError: error.message };
+	}
+}
+
 function extractPicoQuestion(content) {
 	const trimmed = typeof content === "string" ? content.trim() : "";
 	if (!trimmed) {
@@ -412,6 +503,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 		}
 
 		openInTab(url, sender.tab, sendResponse, true);
+		return true;
+	}
+
+	if (message?.type === "OE_FORMULARY_LOOKUP") {
+		lookupFormulary(message.query)
+			.then((result) => sendResponse({ ok: true, result }))
+			.catch((error) => sendResponse({ ok: false, error: error.message }));
 		return true;
 	}
 
@@ -532,6 +630,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 chrome.storage.onChanged.addListener((changes, areaName) => {
+	if (
+		areaName === "local" &&
+		changes[OEFormulary.FORMULARY_ITEMS_STORAGE_KEY]
+	) {
+		formularyIndexPromise = null;
+		return;
+	}
+
 	if (areaName !== "sync") {
 		return;
 	}

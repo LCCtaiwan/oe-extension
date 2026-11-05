@@ -44,6 +44,15 @@
         >
           History
         </button>
+        <button
+          type="button"
+          class="tab-button"
+          data-tab="formulary"
+          role="tab"
+          aria-selected="false"
+        >
+          院內品項
+        </button>
       </nav>
 
       <form id="options-form">
@@ -160,8 +169,43 @@
         <div id="history-list" class="history-list"></div>
         <p id="history-empty" class="history-empty" hidden>No history yet.</p>
       </section>
+
+      <section id="tab-formulary" class="tab-panel" role="tabpanel" hidden>
+        <section class="settings-section">
+          <h2>院內品項</h2>
+          <p>
+            匯入院內藥品清單（.xlsx 或 .csv）後，選取工具列會多一個「院內」按鈕，
+            可查詢院內有沒有這個藥，以及 ATC 相同的同成分品項、ATC 前 5
+            碼相同的同機轉品項。
+          </p>
+          <p class="field-hint">
+            第一列為欄位名稱。必須有「藥名」；建議有「批價碼」「ATC碼」「劑型」
+            「健保價」「自費價」，以及「P1儲位」「藥庫」等儲位欄位。XLSX
+            只讀第一個工作表。清單只存在這台電腦的瀏覽器裡，不會上傳或同步。
+          </p>
+          <label for="formulary-file">匯入清單</label>
+          <div class="key-row formulary-file-row">
+            <input id="formulary-file" type="file" accept=".xlsx,.csv,text/csv" />
+            <button type="button" id="clear-formulary">清除</button>
+          </div>
+          <p id="formulary-status" role="status" aria-live="polite"></p>
+        </section>
+
+        <section class="settings-section">
+          <h2>測試查詢</h2>
+          <input
+            id="formulary-query"
+            type="search"
+            autocomplete="off"
+            spellcheck="false"
+            placeholder="例如 rosuvastatin、冠脂妥、OATOR40"
+          />
+          <div id="formulary-results" class="formulary-results"></div>
+        </section>
+      </section>
     </main>
 
+    <script src="formulary.js"></script>
     <script src="options.js"></script>
   </body>
 </html>
