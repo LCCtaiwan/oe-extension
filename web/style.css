@@ -1,0 +1,460 @@
+:root {
+  color-scheme: light dark;
+  --page: #f6f7f8;
+  --surface: #ffffff;
+  --surface-muted: #f4f4f5;
+  --fg: #18181b;
+  --muted: #5f646b;
+  --border: #e4e4e7;
+  --border-strong: #d4d4d8;
+  --primary: #f3602d;
+  --primary-strong: #d9481a;
+  --primary-fg: #ffffff;
+  --accent: #2f6f63;
+  --danger: #b42318;
+  --shadow: rgba(24, 24, 27, 0.08);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--fg);
+  background: var(--page);
+  -webkit-text-size-adjust: 100%;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --page: #161616;
+    --surface: #222222;
+    --surface-muted: #2b2b2b;
+    --fg: #f4f4f5;
+    --muted: #b4b4b8;
+    --border: #3a3a3a;
+    --border-strong: #4a4a4a;
+    --primary: #f97316;
+    --primary-strong: #fb923c;
+    --accent: #5fb3a3;
+    --danger: #f87171;
+    --shadow: rgba(0, 0, 0, 0.4);
+  }
+}
+
+:root[data-theme="dark"] {
+  --page: #161616;
+  --surface: #222222;
+  --surface-muted: #2b2b2b;
+  --fg: #f4f4f5;
+  --muted: #b4b4b8;
+  --border: #3a3a3a;
+  --border-strong: #4a4a4a;
+  --primary: #f97316;
+  --primary-strong: #fb923c;
+  --accent: #5fb3a3;
+  --danger: #f87171;
+  --shadow: rgba(0, 0, 0, 0.4);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--page);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------------ header */
+
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: calc(10px + env(safe-area-inset-top)) 16px 10px;
+  background: color-mix(in srgb, var(--page) 92%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border);
+}
+
+.app-header h1 {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.2;
+  font-weight: 750;
+}
+
+.list-status {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.list-status[data-state="error"] {
+  color: var(--danger);
+}
+
+.icon-button {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--fg);
+  cursor: pointer;
+}
+
+.icon-button svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ------------------------------------------------------------------ search */
+
+.app-main {
+  width: min(720px, 100%);
+  margin: 0 auto;
+  padding: 14px 16px 32px;
+  display: grid;
+  gap: 14px;
+}
+
+.search {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 8px;
+}
+
+input[type="search"],
+input[type="url"] {
+  width: 100%;
+  min-width: 0;
+  min-height: 46px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  padding: 0 12px;
+  background: var(--surface);
+  color: var(--fg);
+  /* 16px keeps iOS Safari from zooming in on focus. */
+  font: inherit;
+  font-size: 16px;
+}
+
+input:focus-visible,
+.button:focus-visible,
+.icon-button:focus-visible,
+.chip-link:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.button {
+  min-height: 46px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  padding: 0 14px;
+  background: var(--surface);
+  color: var(--fg);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 650;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.button--primary {
+  border-color: var(--primary-strong);
+  background: var(--primary);
+  color: var(--primary-fg);
+}
+
+.button--danger {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.external-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chip-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  padding: 0 14px;
+  background: var(--surface);
+  color: var(--fg);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+/* ----------------------------------------------------------------- results */
+
+.card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  padding: 16px;
+  box-shadow: 0 1px 2px var(--shadow);
+}
+
+.onboarding h2 {
+  margin: 0 0 6px;
+  font-size: 17px;
+}
+
+.onboarding p {
+  margin: 0 0 12px;
+  color: var(--muted);
+}
+
+.results {
+  display: grid;
+  gap: 18px;
+}
+
+.result-section {
+  display: grid;
+  gap: 8px;
+}
+
+.result-section h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 750;
+}
+
+.result-section__hint,
+.note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.note--source {
+  border-left: 3px solid var(--accent);
+  padding-left: 10px;
+  color: var(--fg);
+}
+
+.empty {
+  margin: 0;
+  font-size: 15px;
+}
+
+.drug-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.drug {
+  display: grid;
+  gap: 6px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: var(--surface);
+}
+
+.drug__name {
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.drug__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0 7px;
+  background: var(--surface-muted);
+  color: var(--fg);
+  font-size: 13px;
+}
+
+.tag--muted {
+  color: var(--muted);
+}
+
+.tag--code {
+  min-height: 32px;
+  border-color: var(--primary-strong);
+  background: var(--surface);
+  color: var(--primary-strong);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.rx-button {
+  justify-self: start;
+}
+
+.loading {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+/* ---------------------------------------------------------------- settings */
+
+.settings {
+  width: min(560px, calc(100vw - 24px));
+  max-height: calc(100dvh - 24px);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 0;
+  background: var(--surface);
+  color: var(--fg);
+}
+
+.settings::backdrop {
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.settings__inner {
+  display: grid;
+  gap: 18px;
+  padding: 16px;
+}
+
+.settings__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.settings__header h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.settings__section {
+  display: grid;
+  gap: 8px;
+}
+
+.settings__section h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.settings__section label {
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.hint[data-state="success"] {
+  color: var(--accent);
+  font-weight: 650;
+}
+
+.hint[data-state="error"] {
+  color: var(--danger);
+  font-weight: 650;
+}
+
+.toggle-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.toggle-row input {
+  width: 20px;
+  height: 20px;
+  margin: 2px 0 0;
+  accent-color: var(--primary);
+}
+
+details {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+summary {
+  font-weight: 650;
+  cursor: pointer;
+}
+
+details .hint {
+  margin-top: 8px;
+}
+
+.steps {
+  padding-left: 20px;
+}
+
+.steps li + li {
+  margin-top: 4px;
+}
+
+code {
+  overflow-wrap: anywhere;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+}
+
+@media (max-width: 420px) {
+  .search {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .search input {
+    grid-column: 1 / -1;
+  }
+}

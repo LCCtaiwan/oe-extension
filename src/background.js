@@ -322,6 +322,86 @@ function getFormularyIndex() {
 	return formularyIndexPromise;
 }
 
+// The shared list can come from one published Google Sheet (oeFormularyUrl in
+// storage.sync), refreshed at browser start and at most every few hours.
+const FORMULARY_REFRESH_MS = 6 * 60 * 60 * 1000;
+let formularySyncPromise = null;
+
+async function syncFormularyFromUrl() {
+	if (formularySyncPromise) {
+		return formularySyncPromise;
+	}
+	formularySyncPromise = (async () => {
+		const settings = await chrome.storage.sync.get({
+			[OEFormulary.FORMULARY_URL_STORAGE_KEY]: "",
+		});
+		const csvUrl = OEFormulary.sheetCsvUrl(
+			settings[OEFormulary.FORMULARY_URL_STORAGE_KEY],
+		);
+		if (!csvUrl) {
+			throw new Error("尚未設定 Google 試算表連結");
+		}
+
+		const response = await fetch(csvUrl, { cache: "no-store" });
+		if (!response.ok) {
+			throw new Error(`HTTP ${response.status}`);
+		}
+		const parsed = OEFormulary.parseFormularyText(await response.text());
+		if (parsed.items.length === 0) {
+			throw new Error("清單裡沒有任何品項");
+		}
+
+		const fingerprint = OEFormulary.formularyFingerprint(parsed.items);
+		const stored = await chrome.storage.local.get({
+			[OEFormulary.FORMULARY_META_STORAGE_KEY]: null,
+		});
+		const previous = stored[OEFormulary.FORMULARY_META_STORAGE_KEY];
+		const meta = {
+			count: parsed.items.length,
+			withAtc: parsed.withAtc,
+			missingColumns: parsed.missingColumns,
+			fileName: "Google 試算表",
+			source: "url",
+			fingerprint,
+			importedAt: Date.now(),
+		};
+		const update = { [OEFormulary.FORMULARY_META_STORAGE_KEY]: meta };
+		if (previous?.fingerprint !== fingerprint) {
+			update[OEFormulary.FORMULARY_ITEMS_STORAGE_KEY] = parsed.items;
+		}
+		await chrome.storage.local.set(update);
+		return { ...meta, changed: previous?.fingerprint !== fingerprint };
+	})();
+	try {
+		return await formularySyncPromise;
+	} finally {
+		formularySyncPromise = null;
+	}
+}
+
+// Fire-and-forget refresh when a sheet URL is set and the copy is stale.
+async function refreshFormularyIfStale() {
+	const [settings, local] = await Promise.all([
+		chrome.storage.sync.get({ [OEFormulary.FORMULARY_URL_STORAGE_KEY]: "" }),
+		chrome.storage.local.get({ [OEFormulary.FORMULARY_META_STORAGE_KEY]: null }),
+	]);
+	if (!settings[OEFormulary.FORMULARY_URL_STORAGE_KEY]) {
+		return;
+	}
+	const meta = local[OEFormulary.FORMULARY_META_STORAGE_KEY];
+	if (
+		meta?.source === "url" &&
+		Date.now() - (meta.importedAt || 0) < FORMULARY_REFRESH_MS
+	) {
+		return;
+	}
+	await syncFormularyFromUrl();
+}
+
+chrome.runtime.onStartup.addListener(() => {
+	refreshFormularyIfStale().catch(() => {});
+});
+
 const ATC_GUESS_INSTRUCTION = `Identify the medications named in the text below (generic or brand names, any language). For each, give its generic name and its WHO ATC code at the most specific level you are confident of (prefer the 7-character code). Ignore anything that is not a medication.
 
 Export as JSON:
@@ -432,7 +512,15 @@ async function lookupFormulary(query) {
 		throw new Error("Selection is required");
 	}
 
-	const index = await getFormularyIndex();
+	let index = await getFormularyIndex();
+	if (index.items.length === 0) {
+		// First lookup on a new computer: try the shared sheet once.
+		await refreshFormularyIfStale().catch(() => {});
+		formularyIndexPromise = null;
+		index = await getFormularyIndex();
+	} else {
+		refreshFormularyIfStale().catch(() => {});
+	}
 	if (index.items.length === 0) {
 		throw new Error("尚未匯入院內品項，請先到設定頁的「院內品項」分頁匯入");
 	}
@@ -611,6 +699,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 		}
 
 		openInTab(url, sender.tab, sendResponse, true);
+		return true;
+	}
+
+	if (message?.type === "OE_FORMULARY_SYNC") {
+		syncFormularyFromUrl()
+			.then((meta) => sendResponse({ ok: true, meta }))
+			.catch((error) => sendResponse({ ok: false, error: error.message }));
 		return true;
 	}
 

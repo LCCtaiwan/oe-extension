@@ -10,6 +10,8 @@
 (function (root) {
 	const FORMULARY_ITEMS_STORAGE_KEY = "oeFormularyItems";
 	const FORMULARY_META_STORAGE_KEY = "oeFormularyMeta";
+	// The shared list's address (a published Google Sheets CSV link).
+	const FORMULARY_URL_STORAGE_KEY = "oeFormularyUrl";
 
 	// Header aliases, compared after removing whitespace and lower-casing.
 	const COLUMN_ALIASES = {
@@ -450,6 +452,75 @@
 		return rowsToFormulary(rows);
 	}
 
+	function parseFormularyText(text) {
+		return rowsToFormulary(parseCsv(text));
+	}
+
+	// Turns whatever Google Sheets link the user pastes into one that returns
+	// CSV. Returns "" for anything that isn't an https URL.
+	//   .../spreadsheets/d/e/<pubId>/pubhtml?gid=..  -> .../pub?gid=..&output=csv
+	//   .../spreadsheets/d/<id>/edit#gid=123         -> .../gviz/tq?tqx=out:csv&gid=123
+	// Other https URLs (a CSV hosted elsewhere) are used as they are.
+	function sheetCsvUrl(input) {
+		let url;
+		try {
+			url = new URL(String(input || "").trim());
+		} catch (_error) {
+			return "";
+		}
+		if (url.protocol !== "https:") {
+			return "";
+		}
+		if (url.hostname !== "docs.google.com") {
+			return url.href;
+		}
+
+		const gid =
+			url.searchParams.get("gid") ||
+			(url.hash.match(/gid=(\d+)/) || [])[1] ||
+			"";
+
+		const published = url.pathname.match(
+			/^\/spreadsheets\/d\/e\/([\w-]+)\/pub(?:html)?/,
+		);
+		if (published) {
+			const next = new URL(
+				`https://docs.google.com/spreadsheets/d/e/${published[1]}/pub`,
+			);
+			if (gid) {
+				next.searchParams.set("gid", gid);
+				next.searchParams.set("single", "true");
+			}
+			next.searchParams.set("output", "csv");
+			return next.href;
+		}
+
+		const shared = url.pathname.match(/^\/spreadsheets\/d\/([\w-]+)/);
+		if (shared) {
+			const next = new URL(
+				`https://docs.google.com/spreadsheets/d/${shared[1]}/gviz/tq`,
+			);
+			next.searchParams.set("tqx", "out:csv");
+			if (gid) {
+				next.searchParams.set("gid", gid);
+			}
+			return next.href;
+		}
+
+		return url.href;
+	}
+
+	// A short fingerprint of the list so devices can tell whether it changed.
+	function formularyFingerprint(items) {
+		let hash = 0x811c9dc5;
+		const text = JSON.stringify(items || []);
+		for (let i = 0; i < text.length; i += 1) {
+			hash ^= text.charCodeAt(i);
+			hash = Math.imul(hash, 0x01000193);
+		}
+		return `${(items || []).length}-${(hash >>> 0).toString(16)}`;
+	}
+
 	// --------------------------------------------------------------- matching
 
 	function latinTokens(text) {
@@ -733,6 +804,10 @@
 		readXlsxRows,
 		rowsToFormulary,
 		parseFormularyFile,
+		parseFormularyText,
+		sheetCsvUrl,
+		formularyFingerprint,
+		FORMULARY_URL_STORAGE_KEY,
 		normalizeAtc,
 		atcClassOf,
 		formLabel,

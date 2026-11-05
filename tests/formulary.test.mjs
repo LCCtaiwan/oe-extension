@@ -9,7 +9,7 @@ const source = readFileSync(
   fileURLToPath(new URL("../src/formulary.js", import.meta.url)),
   "utf8"
 );
-const context = { TextDecoder, DecompressionStream, Blob, Response };
+const context = { TextDecoder, DecompressionStream, Blob, Response, URL, URLSearchParams };
 vm.createContext(context);
 vm.runInContext(source, context);
 const F = context.OEFormulary;
@@ -226,3 +226,44 @@ const viaRxEmpa = F.lookupByIngredients(index, [
 ]);
 assert.deepEqual(names(viaRxEmpa.sameIngredient), []);
 assert.deepEqual(names(viaRxEmpa.classes[0].items), ["Dapagliflozin (Forxiga) 福適佳 10mg/tab"]);
+
+// --- Google Sheets source -------------------------------------------------
+
+// Published links (pubhtml or pub) become CSV, keeping the sheet tab.
+assert.equal(
+  F.sheetCsvUrl("https://docs.google.com/spreadsheets/d/e/2PACX-1vAbC_d-9/pubhtml?gid=235064844&single=true"),
+  "https://docs.google.com/spreadsheets/d/e/2PACX-1vAbC_d-9/pub?gid=235064844&single=true&output=csv"
+);
+assert.equal(
+  F.sheetCsvUrl(" https://docs.google.com/spreadsheets/d/e/2PACX-1vAbC/pub?output=csv "),
+  "https://docs.google.com/spreadsheets/d/e/2PACX-1vAbC/pub?output=csv"
+);
+// Plain share/edit links use the gviz CSV endpoint (needs "anyone with link").
+assert.equal(
+  F.sheetCsvUrl("https://docs.google.com/spreadsheets/d/1xFbq-ABC_123/edit?usp=sharing#gid=99"),
+  "https://docs.google.com/spreadsheets/d/1xFbq-ABC_123/gviz/tq?tqx=out%3Acsv&gid=99"
+);
+assert.equal(
+  F.sheetCsvUrl("https://docs.google.com/spreadsheets/d/1xFbq/edit"),
+  "https://docs.google.com/spreadsheets/d/1xFbq/gviz/tq?tqx=out%3Acsv"
+);
+// Other https CSV hosts pass through; non-https and junk are rejected.
+assert.equal(F.sheetCsvUrl("https://example.org/list.csv"), "https://example.org/list.csv");
+assert.equal(F.sheetCsvUrl("http://docs.google.com/spreadsheets/d/e/x/pub"), "");
+assert.equal(F.sheetCsvUrl("not a url"), "");
+assert.equal(F.sheetCsvUrl(""), "");
+
+// CSV text as Google serves it.
+const fromSheet = F.parseFormularyText(csv);
+assert.equal(fromSheet.items.length, 2);
+assert.equal(fromSheet.items[0].code, "OROSU");
+
+// Fingerprint changes with content, not with object identity.
+assert.equal(
+  F.formularyFingerprint(plain(fromSheet.items)),
+  F.formularyFingerprint(plain(F.parseFormularyText(csv).items))
+);
+assert.notEqual(
+  F.formularyFingerprint(plain(fromSheet.items)),
+  F.formularyFingerprint(plain(fromSheet.items).slice(1))
+);

@@ -58,6 +58,8 @@ const formularyStatus = document.querySelector("#formulary-status");
 const formularyQueryInput = document.querySelector("#formulary-query");
 const formularyResults = document.querySelector("#formulary-results");
 const rxclassEnabledCheckbox = document.querySelector("#rxclass-enabled");
+const formularyUrlInput = document.querySelector("#formulary-url");
+const syncFormularyButton = document.querySelector("#sync-formulary");
 const RXCLASS_ENABLED_STORAGE_KEY = "oeRxClassEnabled";
 const DEFAULT_RXCLASS_ENABLED = true;
 
@@ -590,7 +592,11 @@ async function loadFormularyStatus() {
 	setFormularyStatus(describeFormularyMeta(meta), meta?.count ? "success" : "");
 	const syncItems = await chrome.storage.sync.get({
 		[RXCLASS_ENABLED_STORAGE_KEY]: DEFAULT_RXCLASS_ENABLED,
+		[OEFormulary.FORMULARY_URL_STORAGE_KEY]: "",
 	});
+	if (document.activeElement !== formularyUrlInput) {
+		formularyUrlInput.value = syncItems[OEFormulary.FORMULARY_URL_STORAGE_KEY];
+	}
 	rxclassEnabledCheckbox.checked =
 		syncItems[RXCLASS_ENABLED_STORAGE_KEY] !== false;
 	clearFormularyButton.disabled = !meta?.count;
@@ -698,6 +704,38 @@ clearFormularyButton.addEventListener("click", async () => {
 
 formularyQueryInput.addEventListener("input", renderFormularyTest);
 
+syncFormularyButton.addEventListener("click", async () => {
+	const value = formularyUrlInput.value.trim();
+	if (value && !OEFormulary.sheetCsvUrl(value)) {
+		setFormularyStatus("請貼上 https 開頭的 Google 試算表連結", "error");
+		return;
+	}
+	await chrome.storage.sync.set({
+		[OEFormulary.FORMULARY_URL_STORAGE_KEY]: value,
+	});
+	if (!value) {
+		setFormularyStatus("已移除試算表連結。");
+		return;
+	}
+
+	setFormularyStatus("同步中…");
+	syncFormularyButton.disabled = true;
+	chrome.runtime.sendMessage({ type: "OE_FORMULARY_SYNC" }, async (response) => {
+		syncFormularyButton.disabled = false;
+		if (!response?.ok) {
+			const hint = /藥名/.test(response?.error || "")
+				? "。請確認試算表已「發布到網路」為 CSV，或設為「知道連結的人可檢視」。"
+				: "";
+			setFormularyStatus(
+				`同步失敗：${response?.error || "未知錯誤"}${hint}`,
+				"error",
+			);
+			return;
+		}
+		await loadFormularyStatus();
+	});
+});
+
 rxclassEnabledCheckbox.addEventListener("change", () => {
 	chrome.storage.sync.set({
 		[RXCLASS_ENABLED_STORAGE_KEY]: rxclassEnabledCheckbox.checked,
@@ -722,3 +760,4 @@ setButtonIcon(form.querySelector('button[type="submit"]'), "save");
 setButtonIcon(resetButton, "x");
 setButtonIcon(clearHistoryButton, "trash");
 setButtonIcon(clearFormularyButton, "trash");
+setButtonIcon(syncFormularyButton, "save");

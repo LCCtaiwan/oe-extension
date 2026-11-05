@@ -136,6 +136,34 @@ The list stays in `chrome.storage.local` on this computer; it is never synced
 or uploaded. Only English words from the selection go to RxClass, and only the
 selected text goes to Groq, each only when the in-house list has no match.
 
+## Mobile Web App (院內查藥)
+
+`web/` is a phone-friendly web app (PWA) with the same formulary lookup. It is
+built with `npm run build:web` and deployed to GitHub Pages by
+`.github/workflows/pages.yml` on every push to `main`.
+
+**One shared list.** Convert the drug list to a Google Sheet, then use
+`File → Share → Publish to web → CSV` and paste that link into the app's
+settings (and into the extension's `院內品項` tab). Every phone and computer
+downloads the list from that sheet and keeps an offline copy; editing the sheet
+updates everyone. Anyone with the link can read the list, so share it only
+with colleagues. `設定 → 複製設定連結` produces a link that configures a new
+phone in one tap; the sheet URL travels in the `#fragment`, never reaching the
+web server.
+
+**Using it**
+
+- Add to home screen: Safari → Share → *Add to Home Screen* (iPhone), or
+  Chrome → menu → *Add to Home screen* / *Install app* (Android).
+- Type or paste a drug name; results show in-house items, same ingredient
+  and same mechanism, with copyable billing codes. Buttons send the same text
+  to OpenEvidence, UpToDate, PubMed and Google.
+- From OpenEvidence, a PDF or any app: select text → Share → 院內查藥
+  (Android share target), or an iPhone Shortcut that opens
+  `<app>#src=<sheet>&q=<text>`; the settings screen shows the exact URL.
+- When nothing matches by name, NLM RxClass is queried as in the extension
+  (Groq is not used in the web app).
+
 ## Groq BYOK
 
 The `PICO` and custom prompt buttons appear only after a Groq API key is validated.

@@ -183,7 +183,23 @@
             「健保價」「自費價」，以及「P1儲位」「藥庫」等儲位欄位。XLSX
             只讀第一個工作表。清單只存在這台電腦的瀏覽器裡，不會上傳或同步。
           </p>
-          <label for="formulary-file">匯入清單</label>
+          <label for="formulary-url">Google 試算表連結（建議）</label>
+          <div class="key-row formulary-file-row">
+            <input
+              id="formulary-url"
+              type="text"
+              spellcheck="false"
+              autocomplete="off"
+              placeholder="https://docs.google.com/spreadsheets/d/e/…/pub?output=csv"
+            />
+            <button type="button" id="sync-formulary">儲存並同步</button>
+          </div>
+          <p class="field-hint">
+            跟手機版「院內查藥」用同一份試算表。Chrome 啟動時與每 6
+            小時自動更新；設定連結後，手動匯入的檔案會在下次同步時被取代。
+          </p>
+
+          <label for="formulary-file">或匯入檔案</label>
           <div class="key-row formulary-file-row">
             <input id="formulary-file" type="file" accept=".xlsx,.csv,text/csv" />
             <button type="button" id="clear-formulary">清除</button>

@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <title>院內查藥</title>
+    <meta
+      name="description"
+      content="查詢院內是否有此藥，以及同成分、同機轉（ATC）的院內品項。"
+    />
+    <meta name="theme-color" content="#f3602d" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="院內查藥" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="app-header__title">
+        <h1>院內查藥</h1>
+        <p id="list-status" class="list-status" role="status">讀取中…</p>
+      </div>
+      <button
+        type="button"
+        id="open-settings"
+        class="icon-button"
+        aria-label="設定"
+        title="設定"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"
+          />
+          <circle cx="12" cy="12" r="3" />
+        </svg>
+      </button>
+    </header>
+
+    <main class="app-main">
+      <form id="search-form" class="search" role="search">
+        <label for="query" class="visually-hidden">藥名、商品名或批價碼</label>
+        <input
+          id="query"
+          type="search"
+          inputmode="search"
+          enterkeyhint="search"
+          autocomplete="off"
+          autocapitalize="off"
+          spellcheck="false"
+          placeholder="藥名、商品名或批價碼"
+        />
+        <button type="button" id="paste" class="button">貼上</button>
+        <button type="submit" class="button button--primary">查詢</button>
+      </form>
+
+      <nav id="external-links" class="external-links" aria-label="外部查詢" hidden>
+        <a id="link-oe" class="chip-link" target="_blank" rel="noopener">OpenEvidence</a>
+        <a id="link-utd" class="chip-link" target="_blank" rel="noopener">UpToDate</a>
+        <a id="link-pubmed" class="chip-link" target="_blank" rel="noopener">PubMed</a>
+        <a id="link-google" class="chip-link" target="_blank" rel="noopener">Google</a>
+      </nav>
+
+      <section id="onboarding" class="card onboarding" hidden>
+        <h2>第一次使用</h2>
+        <p>
+          請到 <strong>設定</strong> 貼上院內清單的 Google 試算表連結，或請同事給你
+          「設定連結」，點開就會自動設定。
+        </p>
+        <button type="button" id="onboarding-settings" class="button button--primary">
+          開啟設定
+        </button>
+      </section>
+
+      <section id="results" class="results" aria-live="polite"></section>
+    </main>
+
+    <dialog id="settings" class="settings">
+      <form method="dialog" class="settings__inner">
+        <header class="settings__header">
+          <h2>設定</h2>
+          <button value="close" class="icon-button" aria-label="關閉">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M18 6 6 18" />
+              <path d="m6 6 12 12" />
+            </svg>
+          </button>
+        </header>
+
+        <section class="settings__section">
+          <h3>院內清單</h3>
+          <label for="sheet-url">Google 試算表連結</label>
+          <input
+            id="sheet-url"
+            type="url"
+            inputmode="url"
+            autocomplete="off"
+            spellcheck="false"
+            placeholder="https://docs.google.com/spreadsheets/d/e/…/pub?output=csv"
+          />
+          <div class="button-row">
+            <button type="button" id="save-url" class="button button--primary">
+              儲存並同步
+            </button>
+            <button type="button" id="sync-now" class="button">立即同步</button>
+          </div>
+          <p id="sync-status" class="hint" role="status"></p>
+          <p class="hint">
+            每次打開 App 會自動檢查清單有沒有更新；沒有網路時使用上次下載的清單。
+          </p>
+        </section>
+
+        <section class="settings__section">
+          <h3>分享給同事</h3>
+          <p class="hint">
+            複製「設定連結」傳給同事，對方點開就會自動帶入同一份清單。拿到連結的人都能看到清單內容。
+          </p>
+          <button type="button" id="copy-setup-link" class="button">
+            複製設定連結
+          </button>
+        </section>
+
+        <section class="settings__section">
+          <h3>查不到時</h3>
+          <label class="toggle-row" for="rxclass-enabled">
+            <input id="rxclass-enabled" type="checkbox" />
+            <span>院內清單比對不到時，向 NLM RxClass 查詢 ATC</span>
+          </label>
+          <p class="hint">
+            會把查詢文字中的英文藥名送到 rxnav.nlm.nih.gov，用來找院內同成分、同機轉的品項。中文藥名查不到。
+          </p>
+        </section>
+
+        <section class="settings__section">
+          <h3>從其他 App 直接查</h3>
+          <details>
+            <summary>Android</summary>
+            <p class="hint">
+              先把本 App 加到主畫面（Chrome 選單 →「加到主畫面」或「安裝應用程式」）。之後在任何
+              App 選取文字 → 分享 → 選「院內查藥」。
+            </p>
+          </details>
+          <details>
+            <summary>iPhone（捷徑）</summary>
+            <ol class="hint steps">
+              <li>打開「捷徑」App → 右上角 ＋ 建立新捷徑，命名「院內查藥」。</li>
+              <li>點捷徑下方的 ⓘ，開啟「在分享表單中顯示」，類型只勾「文字」。</li>
+              <li>加入動作「URL 編碼」，輸入選「捷徑輸入」。</li>
+              <li>
+                加入動作「打開 URL」，網址貼上下面這串，最後面接上變數「URL 編碼的文字」：
+                <code id="shortcut-url"></code>
+              </li>
+              <li>之後在任何 App 選取文字 → 分享 → 選「院內查藥」。</li>
+            </ol>
+          </details>
+        </section>
+
+        <section class="settings__section">
+          <button type="button" id="clear-local" class="button button--danger">
+            清除這台裝置的資料
+          </button>
+        </section>
+      </form>
+    </dialog>
+
+    <script src="formulary.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

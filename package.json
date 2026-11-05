@@ -17,6 +17,7 @@
 	],
 	"scripts": {
 		"build": "node scripts/build-extension.mjs",
-		"test": "node scripts/run-tests.mjs"
+		"test": "node scripts/run-tests.mjs",
+		"build:web": "node scripts/build-web.mjs"
 	}
 }
