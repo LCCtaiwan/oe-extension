@@ -127,8 +127,17 @@ function assertValidFlex(message) {
   assert.ok(all.some((t) => t.startsWith("批價碼 OROSU")));
   const json = JSON.stringify(flex);
   assert.ok(json.includes('"clipboardText":"OROSU"'));
-  assert.ok(json.includes("https://www.openevidence.com/ask?query=rosuvastatin"));
-  assert.ok(json.includes("https://pubmed.ncbi.nlm.nih.gov/?term=rosuvastatin"));
+  // Links open in the phone's browser, not LINE's in-app one.
+  const uris = [];
+  JSON.parse(json, (key, value) => {
+    if (key === "uri") uris.push(value);
+    return value;
+  });
+  assert.deepEqual(uris, [
+    "https://www.openevidence.com/ask?query=rosuvastatin&configName=prod&attachments=%5B%5D&openExternalBrowser=1",
+    "https://www.uptodate.com/contents/search?search=rosuvastatin&openExternalBrowser=1",
+    "https://pubmed.ncbi.nlm.nih.gov/?term=rosuvastatin&openExternalBrowser=1",
+  ]);
 }
 
 // 1:1 chat, Chinese brand name and an optional "院內" prefix.

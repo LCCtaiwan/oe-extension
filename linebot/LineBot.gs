@@ -1158,8 +1158,15 @@ function listContents_(items, notes) {
 
 function linksFooter_(query) {
   var q = encodeURIComponent(truncate_(query, 200));
+  // openExternalBrowser=1 makes LINE open Safari/Chrome (where the user is
+  // already signed in to OpenEvidence/UpToDate) instead of its in-app browser.
   var link = function (label, uri) {
-    return { type: "button", style: "link", height: "sm", action: { type: "uri", label: label, uri: uri } };
+    return {
+      type: "button",
+      style: "link",
+      height: "sm",
+      action: { type: "uri", label: label, uri: uri + "&openExternalBrowser=1" },
+    };
   };
   return {
     type: "box",
