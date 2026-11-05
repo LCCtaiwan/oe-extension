@@ -120,13 +120,21 @@ After import, the selection toolbar shows a `院內` button. It lists:
 - **同機轉** &mdash; items sharing the 5-character ATC chemical subgroup
   (e.g. `C10AA` statins, `A10BK` SGLT2 inhibitors).
 
-Click a billing code to copy it. When nothing matches by name and a Groq key is
-validated, the extension asks Groq for the drug's ATC code and still lists
-same-mechanism in-house items, labelled as an AI guess to verify.
+Click a billing code to copy it.
+
+When nothing in the list matches by name, the ATC code is looked up in order:
+
+1. **NLM RxClass** (`rxnav.nlm.nih.gov`, free, no key). Candidate English drug
+   names from the selection are resolved to RxNorm ingredients and their ATC
+   level-4 class. A US brand such as `Lipitor` then lands on the in-house
+   atorvastatin as same ingredient; an unstocked drug such as `ertugliflozin`
+   lists in-house SGLT2 inhibitors (`A10BK`). Can be turned off on the
+   `院內品項` tab. Chinese names are not in RxNorm.
+2. **Groq** (only with a validated key), labelled as an AI guess to verify.
 
 The list stays in `chrome.storage.local` on this computer; it is never synced
-or uploaded. Only the selected text is sent to Groq, and only for the AI
-fallback.
+or uploaded. Only English words from the selection go to RxClass, and only the
+selected text goes to Groq, each only when the in-house list has no match.
 
 ## Groq BYOK
 

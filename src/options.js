@@ -57,6 +57,9 @@ const clearFormularyButton = document.querySelector("#clear-formulary");
 const formularyStatus = document.querySelector("#formulary-status");
 const formularyQueryInput = document.querySelector("#formulary-query");
 const formularyResults = document.querySelector("#formulary-results");
+const rxclassEnabledCheckbox = document.querySelector("#rxclass-enabled");
+const RXCLASS_ENABLED_STORAGE_KEY = "oeRxClassEnabled";
+const DEFAULT_RXCLASS_ENABLED = true;
 
 function createLucideIcon(name) {
 	const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
@@ -585,6 +588,11 @@ async function loadFormularyStatus() {
 		stored[OEFormulary.FORMULARY_ITEMS_STORAGE_KEY],
 	);
 	setFormularyStatus(describeFormularyMeta(meta), meta?.count ? "success" : "");
+	const syncItems = await chrome.storage.sync.get({
+		[RXCLASS_ENABLED_STORAGE_KEY]: DEFAULT_RXCLASS_ENABLED,
+	});
+	rxclassEnabledCheckbox.checked =
+		syncItems[RXCLASS_ENABLED_STORAGE_KEY] !== false;
 	clearFormularyButton.disabled = !meta?.count;
 	renderFormularyTest();
 }
@@ -627,7 +635,7 @@ function renderFormularyTest() {
 	if (result.direct.length === 0) {
 		const empty = document.createElement("p");
 		empty.textContent =
-			"院內沒有符合的品項。（在網頁上使用「院內」按鈕時，若有設定 Groq key，會再用 AI 推測 ATC 找同機轉品項。）";
+			"院內沒有符合的品項。（這裡只查院內清單；在網頁上使用「院內」按鈕時，會再依序查 NLM RxClass 與 Groq AI 找同機轉品項。）";
 		formularyResults.append(empty);
 		return;
 	}
@@ -689,6 +697,12 @@ clearFormularyButton.addEventListener("click", async () => {
 });
 
 formularyQueryInput.addEventListener("input", renderFormularyTest);
+
+rxclassEnabledCheckbox.addEventListener("change", () => {
+	chrome.storage.sync.set({
+		[RXCLASS_ENABLED_STORAGE_KEY]: rxclassEnabledCheckbox.checked,
+	});
+});
 
 window
 	.matchMedia?.("(prefers-color-scheme: dark)")

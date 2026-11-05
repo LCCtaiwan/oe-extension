@@ -352,6 +352,80 @@ async function guessAtcCodes(apiKey, text) {
 		.slice(0, 5);
 }
 
+const RXCLASS_ENABLED_STORAGE_KEY = "oeRxClassEnabled";
+const DEFAULT_RXCLASS_ENABLED = true;
+const RXCLASS_TIMEOUT_MS = 8000;
+const RXCLASS_CACHE_LIMIT = 300;
+const rxclassCache = new Map();
+
+// One RxClass request: drug name -> [{ ingredient, atcClass, className }].
+// NLM RxNav is free and needs no key; results are cached per worker lifetime.
+async function fetchRxClass(term) {
+	const key = term.toLowerCase();
+	if (rxclassCache.has(key)) {
+		return rxclassCache.get(key);
+	}
+
+	const params = new URLSearchParams({ drugName: term, relaSource: "ATC" });
+	const controller = new AbortController();
+	const timeoutId = setTimeout(() => controller.abort(), RXCLASS_TIMEOUT_MS);
+	try {
+		const response = await fetch(
+			`https://rxnav.nlm.nih.gov/REST/rxclass/class/byDrugName.json?${params}`,
+			{ signal: controller.signal },
+		);
+		// RxNav answers 404 for names it doesn't know.
+		if (response.status === 404) {
+			return [];
+		}
+		if (!response.ok) {
+			throw new Error(`RxClass HTTP ${response.status}`);
+		}
+		const matches = OEFormulary.parseRxClassResponse(
+			await response.json().catch(() => ({})),
+		);
+		if (rxclassCache.size >= RXCLASS_CACHE_LIMIT) {
+			rxclassCache.delete(rxclassCache.keys().next().value);
+		}
+		rxclassCache.set(key, matches);
+		return matches;
+	} catch (error) {
+		if (error.name === "AbortError") {
+			throw new Error("RxClass request timed out");
+		}
+		throw error;
+	} finally {
+		clearTimeout(timeoutId);
+	}
+}
+
+// Looks up every candidate drug name in the selection. When the whole short
+// phrase resolves (e.g. "sodium bicarbonate"), its single words are ignored so
+// "sodium" alone can't add unrelated classes.
+async function lookupRxClass(text) {
+	const terms = OEFormulary.rxclassTerms(text);
+	if (terms.length === 0) {
+		return [];
+	}
+
+	const settled = await Promise.allSettled(terms.map(fetchRxClass));
+	const failures = settled.filter((entry) => entry.status === "rejected");
+	if (failures.length === settled.length) {
+		throw failures[0].reason;
+	}
+
+	const perTerm = settled.map((entry, i) => ({
+		term: terms[i],
+		matches: entry.status === "fulfilled" ? entry.value : [],
+	}));
+	const phraseHit =
+		perTerm[0].term.includes(" ") && perTerm[0].matches.length > 0;
+	return (phraseHit ? perTerm.slice(0, 1) : perTerm).flatMap(
+		({ term, matches }) => matches.map((match) => ({ ...match, term })),
+	);
+}
+
+// Order: in-house list by name -> NLM RxClass -> Groq guess (last resort).
 async function lookupFormulary(query) {
 	const text = typeof query === "string" ? query.trim() : "";
 	if (!text) {
@@ -360,12 +434,32 @@ async function lookupFormulary(query) {
 
 	const index = await getFormularyIndex();
 	if (index.items.length === 0) {
-		throw new Error("尚未匯入院內品項，請先到設定頁的 Formulary 分頁匯入");
+		throw new Error("尚未匯入院內品項，請先到設定頁的「院內品項」分頁匯入");
 	}
 
 	const result = OEFormulary.lookup(index, text);
 	if (result.direct.length > 0) {
-		return result;
+		return { ...result, source: "formulary" };
+	}
+
+	const settings = await chrome.storage.sync.get({
+		[RXCLASS_ENABLED_STORAGE_KEY]: DEFAULT_RXCLASS_ENABLED,
+	});
+	let rxclassError;
+	if (settings[RXCLASS_ENABLED_STORAGE_KEY] !== false) {
+		try {
+			const rxclass = await lookupRxClass(text);
+			if (rxclass.length > 0) {
+				return {
+					...result,
+					source: "rxclass",
+					rxclass,
+					...OEFormulary.lookupByIngredients(index, rxclass),
+				};
+			}
+		} catch (error) {
+			rxclassError = error.message;
+		}
 	}
 
 	const local = await chrome.storage.local.get({
@@ -374,13 +468,21 @@ async function lookupFormulary(query) {
 	});
 	const apiKey = local[GROQ_API_KEY_STORAGE_KEY];
 	if (!apiKey || local[GROQ_VALIDATED_STORAGE_KEY] !== true) {
-		return { ...result, aiAvailable: false };
+		return {
+			...result,
+			source: "none",
+			rxclassEnabled: settings[RXCLASS_ENABLED_STORAGE_KEY] !== false,
+			rxclassError,
+			aiAvailable: false,
+		};
 	}
 
 	try {
 		const guesses = await guessAtcCodes(apiKey, text);
 		return {
 			...result,
+			source: "ai",
+			rxclassError,
 			aiAvailable: true,
 			aiGuesses: guesses,
 			...OEFormulary.lookupByAtc(
@@ -389,7 +491,13 @@ async function lookupFormulary(query) {
 			),
 		};
 	} catch (error) {
-		return { ...result, aiAvailable: true, aiError: error.message };
+		return {
+			...result,
+			source: "none",
+			rxclassError,
+			aiAvailable: true,
+			aiError: error.message,
+		};
 	}
 }
 

@@ -63,6 +63,25 @@
 	const RELATIVE_SCORE_THRESHOLD = 0.5;
 	const DEFAULT_LIMITS = { direct: 20, sameIngredient: 20, perClass: 25 };
 
+	// Common English words in clinical prose that are never drug names; skipped
+	// so a selected sentence doesn't fan out into pointless RxClass requests.
+	const RXCLASS_TERM_STOP_WORDS = new Set(
+		(
+			"patient patients with without after before during daily dose doses " +
+			"dosing therapy treatment treated mortality reduce reduced reduces " +
+			"increase increased risk compared versus than that this these those " +
+			"were was have has had from into over under about among trial trials " +
+			"study studies group groups placebo randomized year years month months " +
+			"week weeks days hospitalization failure heart disease events event " +
+			"outcome outcomes adverse effect effects whereas while which when where " +
+			"what also more less most least should could would there their other " +
+			"such than then them they given use used using combination plus initial " +
+			"first line second therapy acute chronic severe mild moderate associated " +
+			"evidence guideline guidelines recommended recommend benefit benefits"
+		).split(/\s+/),
+	);
+	const MAX_RXCLASS_TERMS = 8;
+
 	function cleanCell(value) {
 		if (value === null || value === undefined) {
 			return "";
@@ -591,6 +610,121 @@
 		return relatedByAtc(index, atcCodes || [], [], limits);
 	}
 
+	// ---------------------------------------------------------------- RxClass
+
+	// Drug-name candidates to send to RxClass. A short selection is tried as a
+	// whole phrase first ("sodium bicarbonate"); every remaining word that could
+	// be a drug name is tried on its own. RxNorm only knows English names, so
+	// Chinese text yields nothing.
+	function rxclassTerms(text, max = MAX_RXCLASS_TERMS) {
+		const words =
+			String(text || "")
+				.normalize("NFKC")
+				.match(/[A-Za-z][A-Za-z-]*[A-Za-z]/g) || [];
+		const terms = [];
+		const seen = new Set();
+		const add = (term) => {
+			const key = term.toLowerCase();
+			if (!seen.has(key) && terms.length < max) {
+				seen.add(key);
+				terms.push(term);
+			}
+		};
+
+		if (words.length >= 2 && words.length <= 4) {
+			add(words.join(" "));
+		}
+		for (const word of words) {
+			const lower = word.toLowerCase();
+			if (
+				lower.length >= MIN_LATIN_KEYWORD &&
+				!STOP_WORDS.has(lower) &&
+				!RXCLASS_TERM_STOP_WORDS.has(lower)
+			) {
+				add(word);
+			}
+		}
+		return terms;
+	}
+
+	// Parses an RxClass class/byDrugName response (relaSource=ATC) into
+	// { ingredient, atcClass, className } entries. RxClass links drugs to ATC
+	// level-4 classes (5 characters), which is exactly the "same mechanism"
+	// granularity used here.
+	function parseRxClassResponse(json) {
+		const list = json?.rxclassDrugInfoList?.rxclassDrugInfo;
+		if (!Array.isArray(list)) {
+			return [];
+		}
+		const results = [];
+		const seen = new Set();
+		for (const info of list) {
+			const concept = info?.rxclassMinConceptItem;
+			const classType = String(concept?.classType || "");
+			const atcClass = normalizeAtc(concept?.classId);
+			const ingredient = cleanCell(info?.minConcept?.name).toLowerCase();
+			if (!/^ATC/i.test(classType) || atcClass.length !== 5 || !ingredient) {
+				continue;
+			}
+			const key = `${ingredient}|${atcClass}`;
+			if (seen.has(key)) {
+				continue;
+			}
+			seen.add(key);
+			results.push({
+				ingredient,
+				atcClass,
+				className: cleanCell(concept?.className),
+			});
+		}
+		return results;
+	}
+
+	// Turns RxClass matches into formulary results: items whose names match the
+	// RxNorm ingredient are "same ingredient" (so a US brand like Lipitor still
+	// lands on the in-house atorvastatin), and the ATC classes give the
+	// same-mechanism groups.
+	function lookupByIngredients(index, matches, limits = DEFAULT_LIMITS) {
+		const sameIngredient = [];
+		const seen = new Set();
+		const ingredients = [
+			...new Set((matches || []).map((match) => match.ingredient)),
+		];
+		for (const ingredient of ingredients) {
+			for (const item of lookup(index, ingredient, limits).direct) {
+				if (!seen.has(item)) {
+					seen.add(item);
+					sameIngredient.push(item);
+				}
+			}
+		}
+
+		const related = relatedByAtc(
+			index,
+			[
+				...(matches || []).map((match) => match.atcClass),
+				...sameIngredient.map((item) => item.atc || ""),
+			],
+			sameIngredient,
+			limits,
+		);
+		const classNames = {};
+		for (const match of matches || []) {
+			if (match.className && !classNames[match.atcClass]) {
+				classNames[match.atcClass] = match.className;
+			}
+		}
+
+		return {
+			sameIngredient: [...sameIngredient, ...related.sameIngredient].slice(
+				0,
+				limits.sameIngredient,
+			),
+			classes: related.classes,
+			classNames,
+		};
+	}
+
 	root.OEFormulary = {
 		FORMULARY_ITEMS_STORAGE_KEY,
 		FORMULARY_META_STORAGE_KEY,
@@ -606,5 +740,8 @@
 		createIndex,
 		lookup,
 		lookupByAtc,
+		rxclassTerms,
+		parseRxClassResponse,
+		lookupByIngredients,
 	};
 })(typeof globalThis !== "undefined" ? globalThis : self);

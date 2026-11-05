@@ -4,7 +4,11 @@
 	"version": "0.1.9",
 	"description": "Show an OE button after selecting text on whitelisted sites and open the selection in OpenEvidence.",
 	"permissions": ["storage", "tabs", "contextMenus", "sidePanel"],
-	"host_permissions": ["<all_urls>", "https://api.groq.com/*"],
+	"host_permissions": [
+		"<all_urls>",
+		"https://api.groq.com/*",
+		"https://rxnav.nlm.nih.gov/*"
+	],
 	"background": {
 		"service_worker": "src/background.js"
 	},

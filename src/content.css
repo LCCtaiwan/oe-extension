@@ -279,6 +279,12 @@
   font-size: 14px;
 }
 
+.oe-formulary-note--source {
+  border-left: 3px solid #2f6f63;
+  padding-left: 8px;
+  color: var(--oe-fg);
+}
+
 .oe-formulary-note--ai {
   border-left: 3px solid var(--oe-primary);
   padding-left: 8px;

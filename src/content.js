@@ -901,7 +901,19 @@ function renderFormularyResult(result) {
     missing.textContent = `院內沒有符合「${shortQuery}」的品項。`;
     body.append(missing);
 
-    if (Array.isArray(result.aiGuesses) && result.aiGuesses.length > 0) {
+    if (Array.isArray(result.rxclass) && result.rxclass.length > 0) {
+      const seen = new Set();
+      const lines = result.rxclass
+        .filter((match) => {
+          const key = `${match.ingredient}|${match.atcClass}`;
+          return seen.has(key) ? false : seen.add(key);
+        })
+        .map((match) => `${match.ingredient} → ATC ${match.atcClass}${match.className ? ` ${match.className}` : ""}`);
+      const source = document.createElement("p");
+      source.className = "oe-formulary-note oe-formulary-note--source";
+      source.textContent = `NLM RxClass：${lines.join("、")}`;
+      body.append(source);
+    } else if (Array.isArray(result.aiGuesses) && result.aiGuesses.length > 0) {
       const guess = document.createElement("p");
       guess.className = "oe-formulary-note oe-formulary-note--ai";
       guess.textContent = `AI 推測 ATC：${result.aiGuesses
@@ -916,20 +928,45 @@ function renderFormularyResult(result) {
     } else if (result.aiAvailable === false) {
       const hint = document.createElement("p");
       hint.className = "oe-formulary-note";
-      hint.textContent = "設定 Groq API key 後，院內沒有的藥也能用 AI 推測 ATC，列出同機轉的院內品項。";
+      hint.textContent =
+        result.rxclassEnabled && !result.rxclassError
+          ? "RxClass 也查不到這個藥名。設定 Groq API key 後，可改用 AI 推測 ATC。"
+          : "設定 Groq API key 後，院內沒有的藥也能用 AI 推測 ATC，列出同機轉的院內品項。";
       body.append(hint);
+    }
+
+    if (result.rxclassError && result.source !== "rxclass") {
+      const rxError = document.createElement("p");
+      rxError.className = "oe-formulary-note";
+      rxError.textContent = `RxClass 查詢失敗：${result.rxclassError}`;
+      body.append(rxError);
     }
   }
 
   if (result.sameIngredient.length > 0) {
-    body.append(createFormularySection("同成分其他品項", result.sameIngredient, "ATC 7 碼相同"));
+    const fromRxClass = result.source === "rxclass";
+    body.append(
+      createFormularySection(
+        result.direct.length > 0 ? "同成分其他品項" : "院內同成分品項",
+        result.sameIngredient,
+        fromRxClass ? "藥名含 RxNorm 成分名（例如 Lipitor → atorvastatin）" : "ATC 7 碼相同"
+      )
+    );
   }
 
   result.classes.forEach((group) => {
-    body.append(createFormularySection(`同機轉 · ATC ${group.atcClass}`, group.items, "ATC 前 5 碼相同（同一化學／藥理次分類）"));
+    const className = result.classNames?.[group.atcClass];
+    body.append(
+      createFormularySection(
+        `同機轉 · ATC ${group.atcClass}${className ? ` ${className}` : ""}`,
+        group.items,
+        "ATC 前 5 碼相同（同一化學／藥理次分類）"
+      )
+    );
   });
 
-  if (result.direct.length === 0 && result.sameIngredient.length === 0 && result.classes.length === 0 && result.aiGuesses?.length) {
+  const resolvedExternally = result.rxclass?.length > 0 || result.aiGuesses?.length > 0;
+  if (result.direct.length === 0 && result.sameIngredient.length === 0 && result.classes.length === 0 && resolvedExternally) {
     const none = document.createElement("p");
     none.className = "oe-formulary-empty";
     none.textContent = "院內也沒有同成分或同機轉的品項。";

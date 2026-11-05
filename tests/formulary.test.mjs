@@ -146,3 +146,83 @@ assert.deepEqual(names(result.classes[0].items), ["Atorvastatin (Tulip) 妥寧 4
 // Empty inputs.
 assert.deepEqual(plain(F.lookup(index, "  ").direct), []);
 assert.deepEqual(plain(F.lookup(F.createIndex([]), "rosuvastatin").direct), []);
+
+// --- RxClass -----------------------------------------------------------
+
+// Short phrase first, then candidate words; prose words and units dropped.
+assert.deepEqual(plain(F.rxclassTerms("sodium bicarbonate")), [
+  "sodium bicarbonate",
+  "sodium",
+  "bicarbonate",
+]);
+assert.deepEqual(
+  plain(F.rxclassTerms("In patients with heart failure, empagliflozin 10 mg daily reduced hospitalization")),
+  ["empagliflozin"]
+);
+assert.deepEqual(plain(F.rxclassTerms("Lipitor")), ["Lipitor"]);
+assert.deepEqual(plain(F.rxclassTerms("恩排糖")), []);
+assert.equal(F.rxclassTerms("alpha beta gamma delta epsilon zeta theta iota kappa lambda").length, 8);
+
+// Shape of RxNav's class/byDrugName.json?relaSource=ATC response.
+const rxclassResponse = {
+  rxclassDrugInfoList: {
+    rxclassDrugInfo: [
+      {
+        minConcept: { rxcui: "83367", name: "atorvastatin", tty: "IN" },
+        rxclassMinConceptItem: {
+          classId: "C10AA",
+          className: "HMG CoA reductase inhibitors",
+          classType: "ATC1-4",
+        },
+        rela: "",
+        relaSource: "ATC",
+      },
+      // Duplicate (another product of the same ingredient) is collapsed.
+      {
+        minConcept: { rxcui: "617312", name: "Atorvastatin", tty: "IN" },
+        rxclassMinConceptItem: { classId: "C10AA", className: "HMG CoA reductase inhibitors", classType: "ATC1-4" },
+        relaSource: "ATC",
+      },
+      // Combination class from a multi-ingredient product.
+      {
+        minConcept: { rxcui: "83367", name: "atorvastatin", tty: "IN" },
+        rxclassMinConceptItem: { classId: "C10BA", className: "Combinations of various lipid modifying agents", classType: "ATC1-4" },
+        relaSource: "ATC",
+      },
+      // Non-ATC and malformed entries are ignored.
+      {
+        minConcept: { rxcui: "83367", name: "atorvastatin", tty: "IN" },
+        rxclassMinConceptItem: { classId: "N0000175589", className: "HMG-CoA Reductase Inhibitor", classType: "EPC" },
+        relaSource: "DAILYMED",
+      },
+      { minConcept: {}, rxclassMinConceptItem: { classId: "C10", classType: "ATC1-4" } },
+    ],
+  },
+};
+const rxMatches = plain(F.parseRxClassResponse(rxclassResponse));
+assert.deepEqual(rxMatches, [
+  { ingredient: "atorvastatin", atcClass: "C10AA", className: "HMG CoA reductase inhibitors" },
+  { ingredient: "atorvastatin", atcClass: "C10BA", className: "Combinations of various lipid modifying agents" },
+]);
+assert.deepEqual(plain(F.parseRxClassResponse({})), []);
+assert.deepEqual(plain(F.parseRxClassResponse(null)), []);
+
+// A US brand (Lipitor) isn't in the list by name; RxClass gives the
+// ingredient, which lands on the in-house atorvastatin products as same
+// ingredient, and the statin class for same mechanism.
+assert.deepEqual(names(F.lookup(index, "Lipitor").direct), []);
+const viaRx = F.lookupByIngredients(index, rxMatches);
+assert.deepEqual(names(viaRx.sameIngredient), [
+  "Atorvastatin (Tulip) 妥寧 40 mg/tab",
+  "Atozet (Ezetimibe/Atorvastatin) 優泰脂 10/20 mg/tab",
+]);
+assert.deepEqual(plain(viaRx.classes.map((group) => group.atcClass)), ["C10AA"]);
+assert.deepEqual(names(viaRx.classes[0].items), ["Rosuvastatin (Crestor) 冠脂妥 10mg/tab"]);
+assert.equal(viaRx.classNames.C10AA, "HMG CoA reductase inhibitors");
+
+// Not stocked (empagliflozin): class only.
+const viaRxEmpa = F.lookupByIngredients(index, [
+  { ingredient: "empagliflozin", atcClass: "A10BK", className: "SGLT2 inhibitors" },
+]);
+assert.deepEqual(names(viaRxEmpa.sameIngredient), []);
+assert.deepEqual(names(viaRxEmpa.classes[0].items), ["Dapagliflozin (Forxiga) 福適佳 10mg/tab"]);

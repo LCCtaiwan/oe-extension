@@ -189,6 +189,16 @@
             <button type="button" id="clear-formulary">清除</button>
           </div>
           <p id="formulary-status" role="status" aria-live="polite"></p>
+
+          <label class="toggle-row" for="rxclass-enabled">
+            <input id="rxclass-enabled" type="checkbox" />
+            <span>院內清單比對不到時，向 NLM RxClass 查詢 ATC</span>
+          </label>
+          <p class="field-hint">
+            查詢順序：院內清單 → NLM RxClass（免費、不需金鑰）→ Groq AI
+            推測（需已驗證的 Groq key）。開啟 RxClass 時，選取文字中的英文詞會送到
+            <code>rxnav.nlm.nih.gov</code>；中文藥名查不到。
+          </p>
         </section>
 
         <section class="settings-section">
