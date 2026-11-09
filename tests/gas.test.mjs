@@ -328,6 +328,39 @@ function bootOf(page) {
   assert.match(html, /id="link-oe"/);
 }
 
+// Apps Script's HTML service strips "//" to the end of the line outside
+// '...' / "..." strings (it doesn't know template literals). The page scripts
+// must still compile after that, or the page dies with a SyntaxError.
+{
+  const stripLineComments = (code) => {
+    let out = "";
+    let quote = null;
+    for (let i = 0; i < code.length; i += 1) {
+      const c = code[i];
+      if (quote) {
+        out += c;
+        if (c === "\\") {
+          out += code[(i += 1)] ?? "";
+        } else if (c === quote || c === "\n") {
+          quote = null;
+        }
+      } else if (c === '"' || c === "'") {
+        quote = c;
+        out += c;
+      } else if (c === "/" && code[i + 1] === "/") {
+        while (i < code.length && code[i] !== "\n") i += 1;
+        out += "\n";
+      } else {
+        out += c;
+      }
+    }
+    return out;
+  };
+  for (const [, source] of html.matchAll(/<script>([\s\S]*?)<\/script>/g)) {
+    new vm.Script(stripLineComments(source.replace("/*@boot*/null", "null")));
+  }
+}
+
 // Text API for the iPhone Shortcut pop-up.
 {
   const { context } = makeRuntime();

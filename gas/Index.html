@@ -851,7 +851,7 @@ body {
     <!-- Runs before the big scripts: if they fail to load or start, say so
          instead of leaving 讀取中… on screen. -->
     <script>
-      window.OE_PAGE_BUILD = "fefeabe";
+      window.OE_PAGE_BUILD = "0376196";
       (function () {
         var status = document.getElementById("list-status");
         var errors = [];
@@ -1502,7 +1502,9 @@ body {
 		);
 		if (published) {
 			const next = new URL(
-				`https://docs.google.com/spreadsheets/d/e/${published[1]}/pub`,
+				// Plain strings, not template literals: Apps Script's HTML service
+				// strips "//" inside backtick strings as if it began a comment.
+				"https://docs.google.com/spreadsheets/d/e/" + published[1] + "/pub",
 			);
 			if (gid) {
 				next.searchParams.set("gid", gid);
@@ -1515,7 +1517,7 @@ body {
 		const shared = url.pathname.match(/^\/spreadsheets\/d\/([\w-]+)/);
 		if (shared) {
 			const next = new URL(
-				`https://docs.google.com/spreadsheets/d/${shared[1]}/gviz/tq`,
+				"https://docs.google.com/spreadsheets/d/" + shared[1] + "/gviz/tq",
 			);
 			next.searchParams.set("tqx", "out:csv");
 			if (gid) {

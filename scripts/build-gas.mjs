@@ -36,6 +36,18 @@ function toAscii(code) {
   return code.replace(/[^\x00-\x7f]/g, (ch) => `\\u${ch.charCodeAt(0).toString(16).padStart(4, "0")}`);
 }
 
+// Apps Script's HTML service treats "//" inside a template literal as the
+// start of a comment and cuts the rest of the line, which breaks the whole
+// script ("missing ) after argument list"). Refuse to build such code.
+function assertNoSlashesInTemplates(code, source) {
+  for (const match of code.matchAll(/`[^`]*`/g)) {
+    if (match[0].includes("//")) {
+      const line = code.slice(0, match.index).split("\n").length;
+      throw new Error(`${source}:${line}: a template literal contains "//"; use a plain string instead`);
+    }
+  }
+}
+
 function replaceMarker(html, marker, replacement) {
   const token = `<!-- @${marker} -->`;
   if (!html.includes(token)) {
@@ -74,7 +86,15 @@ html = replaceMarker(
   "script",
   // One script: the matcher and the page either both run or the startup check
   // reports why not.
-  inline("script", toAscii(`${formulary}\n;\n${pageJs}`), "src/formulary.js + gas/page.js"),
+  inline(
+    "script",
+    toAscii(
+      `${(assertNoSlashesInTemplates(formulary, "src/formulary.js"), formulary)}\n;\n${
+        (assertNoSlashesInTemplates(pageJs, "gas/page.js"), pageJs)
+      }`,
+    ),
+    "src/formulary.js + gas/page.js",
+  ),
 );
 
 const outputs = [

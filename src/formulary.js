@@ -485,7 +485,9 @@
 		);
 		if (published) {
 			const next = new URL(
-				`https://docs.google.com/spreadsheets/d/e/${published[1]}/pub`,
+				// Plain strings, not template literals: Apps Script's HTML service
+				// strips "//" inside backtick strings as if it began a comment.
+				"https://docs.google.com/spreadsheets/d/e/" + published[1] + "/pub",
 			);
 			if (gid) {
 				next.searchParams.set("gid", gid);
@@ -498,7 +500,7 @@
 		const shared = url.pathname.match(/^\/spreadsheets\/d\/([\w-]+)/);
 		if (shared) {
 			const next = new URL(
-				`https://docs.google.com/spreadsheets/d/${shared[1]}/gviz/tq`,
+				"https://docs.google.com/spreadsheets/d/" + shared[1] + "/gviz/tq",
 			);
 			next.searchParams.set("tqx", "out:csv");
 			if (gid) {
