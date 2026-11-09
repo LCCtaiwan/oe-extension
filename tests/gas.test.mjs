@@ -321,7 +321,8 @@ function bootOf(page) {
   assert.doesNotMatch(html, /<script[^>]+src=/, "HtmlService pages can't load local scripts");
   assert.doesNotMatch(html, /<\?/, "no Apps Script scriptlets expected");
   const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
-  assert.equal(scripts.length, 4, "startup check + OE_BOOT + formulary.js + page.js");
+  assert.equal(scripts.length, 3, "startup check + OE_BOOT + formulary.js/page.js");
+  assert.doesNotMatch(scripts[2], /[^\x00-\x7f]/, "inlined code is pure ASCII");
   scripts.forEach((source) => new vm.Script(source));
   assert.match(html, /<base target="_top" \/>/);
   assert.match(html, /id="link-oe"/);

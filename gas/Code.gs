@@ -2,7 +2,7 @@
 // Paste this whole file into Code.gs in the Apps Script editor of the formulary sheet.
 // Source: src/formulary.js + gas/server.js
 
-var OE_BUILD = "c9a3755";
+var OE_BUILD = "fefeabe";
 
 // Hospital formulary (院內品項) lookup: parse an exported drug list (CSV or
 // XLSX), match a selection against it, and list in-house drugs that share the

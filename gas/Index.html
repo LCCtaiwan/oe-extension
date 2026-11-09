@@ -851,15 +851,21 @@ body {
     <!-- Runs before the big scripts: if they fail to load or start, say so
          instead of leaving 讀取中… on screen. -->
     <script>
-      window.OE_PAGE_BUILD = "c9a3755";
+      window.OE_PAGE_BUILD = "fefeabe";
       (function () {
         var status = document.getElementById("list-status");
+        var errors = [];
         function show(text) {
           status.textContent = text;
           status.setAttribute("data-state", "error");
         }
+        // The first error is the cause; later ones usually follow from it.
         window.addEventListener("error", function (event) {
-          show("頁面錯誤：" + (event.message || "未知錯誤") + "（版本 " + window.OE_PAGE_BUILD + "，請截圖回報）");
+          errors.push((event.message || "未知錯誤") + (event.lineno ? " @" + event.lineno + ":" + event.colno : ""));
+          show(
+            "頁面錯誤：" + errors[0] + (errors.length > 1 ? "（另有 " + (errors.length - 1) + " 個）" : "") +
+              "（版本 " + window.OE_PAGE_BUILD + "，請截圖回報）"
+          );
         });
         setTimeout(function () {
           if (status.textContent === "讀取中…") {
@@ -1009,13 +1015,13 @@ body {
 
     <script>window.OE_BOOT = /*@boot*/null;</script>
     <script>
-// Hospital formulary (院內品項) lookup: parse an exported drug list (CSV or
+// Hospital formulary (\u9662\u5167\u54c1\u9805) lookup: parse an exported drug list (CSV or
 // XLSX), match a selection against it, and list in-house drugs that share the
 // same ingredient (identical 7-character ATC) or the same mechanism (same
 // 5-character ATC chemical subgroup, e.g. C10AA = statins).
 //
-// Loaded as a classic script in three places — the service worker
-// (importScripts), the options page (<script>), and the Node tests (vm) — so
+// Loaded as a classic script in three places \u2014 the service worker
+// (importScripts), the options page (<script>), and the Node tests (vm) \u2014 so
 // everything is kept off the global scope except `OEFormulary`.
 
 (function (root) {
@@ -1026,20 +1032,20 @@ body {
 
 	// Header aliases, compared after removing whitespace and lower-casing.
 	const COLUMN_ALIASES = {
-		code: ["批價碼", "院內代碼", "藥品代碼", "藥碼", "代碼", "code"],
-		name: ["藥名", "品名", "藥品名稱", "藥品名", "name", "drugname"],
-		atc: ["atc碼", "atc", "atccode"],
-		pharm: ["藥理代碼", "藥理分類", "藥理"],
-		form: ["劑型", "form"],
-		nhiPrice: ["健保價", "健保價格"],
-		selfPrice: ["自費價", "自費價格"],
+		code: ["\u6279\u50f9\u78bc", "\u9662\u5167\u4ee3\u78bc", "\u85e5\u54c1\u4ee3\u78bc", "\u85e5\u78bc", "\u4ee3\u78bc", "code"],
+		name: ["\u85e5\u540d", "\u54c1\u540d", "\u85e5\u54c1\u540d\u7a31", "\u85e5\u54c1\u540d", "name", "drugname"],
+		atc: ["atc\u78bc", "atc", "atccode"],
+		pharm: ["\u85e5\u7406\u4ee3\u78bc", "\u85e5\u7406\u5206\u985e", "\u85e5\u7406"],
+		form: ["\u5291\u578b", "form"],
+		nhiPrice: ["\u5065\u4fdd\u50f9", "\u5065\u4fdd\u50f9\u683c"],
+		selfPrice: ["\u81ea\u8cbb\u50f9", "\u81ea\u8cbb\u50f9\u683c"],
 	};
-	// Any header containing one of these is a storage location (P1儲位, 藥庫…).
-	const LOCATION_HEADER_PATTERN = /儲位|藥庫|location/i;
+	// Any header containing one of these is a storage location (P1\u5132\u4f4d, \u85e5\u5eab\u2026).
+	const LOCATION_HEADER_PATTERN = /\u5132\u4f4d|\u85e5\u5eab|location/i;
 
-	const FORM_LABELS = { O: "口服", I: "注射", E: "外用" };
+	const FORM_LABELS = { O: "\u53e3\u670d", I: "\u6ce8\u5c04", E: "\u5916\u7528" };
 
-	// Valid WHO ATC prefixes: anatomical group A–V, then digits/letters by level.
+	// Valid WHO ATC prefixes: anatomical group A\u2013V, then digits/letters by level.
 	// Pseudo codes such as "XCOVID0" fail this and are ignored for grouping.
 	const ATC_PATTERN = /^[A-V]\d{2}(?:[A-Z](?:[A-Z](?:\d{2})?)?)?$/;
 
@@ -1057,17 +1063,17 @@ body {
 		).split(/\s+/),
 	);
 	const CJK_STOP_WORDS = new Set([
-		"抗癌藥",
-		"抗癌",
-		"學名藥",
-		"公費",
-		"生物相似",
-		"心血管用藥",
-		"注射液",
-		"眼藥水",
-		"軟膏",
-		"雙聯袋",
-		"沖洗用",
+		"\u6297\u764c\u85e5",
+		"\u6297\u764c",
+		"\u5b78\u540d\u85e5",
+		"\u516c\u8cbb",
+		"\u751f\u7269\u76f8\u4f3c",
+		"\u5fc3\u8840\u7ba1\u7528\u85e5",
+		"\u6ce8\u5c04\u6db2",
+		"\u773c\u85e5\u6c34",
+		"\u8edf\u818f",
+		"\u96d9\u806f\u888b",
+		"\u6c96\u6d17\u7528",
 	]);
 	const MIN_LATIN_KEYWORD = 4;
 	const MIN_CJK_KEYWORD = 2;
@@ -1128,7 +1134,7 @@ body {
 
 	// RFC 4180-ish CSV: quoted fields, doubled quotes, CRLF/LF, embedded newlines.
 	function parseCsv(text) {
-		const source = String(text || "").replace(/^﻿/, "");
+		const source = String(text || "").replace(/^\ufeff/, "");
 		const rows = [];
 		let row = [];
 		let field = "";
@@ -1181,7 +1187,7 @@ body {
 	function decodeText(buffer) {
 		const bytes = new Uint8Array(buffer);
 		const utf8 = new TextDecoder("utf-8").decode(bytes);
-		if (!utf8.includes("�")) {
+		if (!utf8.includes("\ufffd")) {
 			return utf8;
 		}
 		try {
@@ -1236,7 +1242,7 @@ body {
 		return new Uint8Array(await new Response(stream).arrayBuffer());
 	}
 
-	// Minimal ZIP reader (stored + deflate entries, no ZIP64) — enough for the
+	// Minimal ZIP reader (stored + deflate entries, no ZIP64) \u2014 enough for the
 	// XLSX files Excel and Google Sheets write.
 	async function readZipEntries(buffer) {
 		const bytes = new Uint8Array(buffer);
@@ -1249,7 +1255,7 @@ body {
 			}
 		}
 		if (eocd === -1) {
-			throw new Error("不是有效的 XLSX 檔（找不到 ZIP 目錄）");
+			throw new Error("\u4e0d\u662f\u6709\u6548\u7684 XLSX \u6a94\uff08\u627e\u4e0d\u5230 ZIP \u76ee\u9304\uff09");
 		}
 
 		const entryCount = view.getUint16(eocd + 10, true);
@@ -1259,7 +1265,7 @@ body {
 
 		for (let n = 0; n < entryCount; n += 1) {
 			if (view.getUint32(offset, true) !== 0x02014b50) {
-				throw new Error("XLSX 檔案目錄損毀");
+				throw new Error("XLSX \u6a94\u6848\u76ee\u9304\u640d\u6bc0");
 			}
 			const method = view.getUint16(offset + 10, true);
 			const compressedSize = view.getUint32(offset + 20, true);
@@ -1295,7 +1301,7 @@ body {
 							? await inflateRaw(data)
 							: null;
 				if (!raw) {
-					throw new Error(`不支援的壓縮方式 (${entry.method})`);
+					throw new Error(`\u4e0d\u652f\u63f4\u7684\u58d3\u7e2e\u65b9\u5f0f (${entry.method})`);
 				}
 				return decoder.decode(raw);
 			},
@@ -1335,7 +1341,7 @@ body {
 
 		const sheet = sheetPath ? await zip.read(sheetPath) : null;
 		if (!sheet) {
-			throw new Error("XLSX 檔裡找不到工作表");
+			throw new Error("XLSX \u6a94\u88e1\u627e\u4e0d\u5230\u5de5\u4f5c\u8868");
 		}
 
 		const sharedXml = (await zip.read("xl/sharedStrings.xml")) || "";
@@ -1410,7 +1416,7 @@ body {
 	function rowsToFormulary(rows) {
 		const detected = detectColumns(rows || []);
 		if (!detected) {
-			throw new Error("找不到「藥名」欄位，請確認第一列是欄位名稱");
+			throw new Error("\u627e\u4e0d\u5230\u300c\u85e5\u540d\u300d\u6b04\u4f4d\uff0c\u8acb\u78ba\u8a8d\u7b2c\u4e00\u5217\u662f\u6b04\u4f4d\u540d\u7a31");
 		}
 
 		const { headerRow, columns } = detected;
@@ -1543,7 +1549,7 @@ body {
 	}
 
 	function cjkRuns(text) {
-		return String(text || "").match(/[㐀-鿿豈-﫿]+/g) || [];
+		return String(text || "").match(/[\u3400-\u9fff\uf900-\ufaff]+/g) || [];
 	}
 
 	function keywordsOf(name) {
@@ -1631,7 +1637,7 @@ body {
 		const lowerQuery = text.toLowerCase();
 		const queryTokens = new Set(latinTokens(text));
 		// A short query with no spaces may be a partial name ("crest") or a
-		// billing code ("OATOR40") — also try it as a substring.
+		// billing code ("OATOR40") \u2014 also try it as a substring.
 		const substringQuery =
 			lowerQuery.length >= 3 && !/\s/.test(lowerQuery) ? lowerQuery : "";
 
@@ -1639,7 +1645,7 @@ body {
 		index.items.forEach((item, i) => {
 			let score = 0;
 			for (const keyword of index.keywords[i]) {
-				const isCjk = /[㐀-鿿豈-﫿]/.test(keyword);
+				const isCjk = /[\u3400-\u9fff\uf900-\ufaff]/.test(keyword);
 				const hit = isCjk ? text.includes(keyword) : queryTokens.has(keyword);
 				if (hit) {
 					score += 1 / index.documentFrequency.get(keyword);
@@ -1852,9 +1858,9 @@ body {
 			}
 		}
 
-		if (/[㐀-鿿豈-﫿]/.test(source)) {
+		if (/[\u3400-\u9fff\u8c48-\ufaff]/.test(source)) {
 			for (const keyword of index.documentFrequency.keys()) {
-				if (!/[㐀-鿿豈-﫿]/.test(keyword) || !mentionKeyword(index, keyword)) {
+				if (!/[\u3400-\u9fff\u8c48-\ufaff]/.test(keyword) || !mentionKeyword(index, keyword)) {
 					continue;
 				}
 				let from = source.indexOf(keyword);
@@ -1903,9 +1909,8 @@ body {
 	};
 })(typeof globalThis !== "undefined" ? globalThis : self);
 
-</script>
-<script>
-// 院內查藥 · OE — page script of the Apps Script web app (gas/server.js).
+;
+// \u9662\u5167\u67e5\u85e5 \u00b7 OE \u2014 page script of the Apps Script web app (gas/server.js).
 // The phone keeps a copy of the formulary and matches with OEFormulary
 // (src/formulary.js); RxClass and Groq go through google.script.run.
 
@@ -1913,6 +1918,9 @@ body {
   "use strict";
 
   var F = window.OEFormulary;
+  if (!F) {
+    throw new Error("\u9662\u5167\u6bd4\u5c0d\u6a21\u7d44\u6c92\u6709\u8f09\u5165");
+  }
 
   var CACHE_KEY = "oeGasFormulary";
   var CONFIG_KEY = "oeGasConfig";
@@ -1920,7 +1928,7 @@ body {
   var HISTORY_ENABLED_KEY = "oeGasHistoryEnabled";
   var TOKEN_KEY = "oeGasToken";
   var HISTORY_LIMIT = 100;
-  var FORM_LABELS = { O: "口服", I: "注射", E: "外用" };
+  var FORM_LABELS = { O: "\u53e3\u670d", I: "\u6ce8\u5c04", E: "\u5916\u7528" };
 
   var $ = function (selector) {
     return document.querySelector(selector);
@@ -1976,7 +1984,7 @@ body {
     var args = Array.prototype.slice.call(arguments, 1);
     return new Promise(function (resolve, reject) {
       var timer = setTimeout(function () {
-        reject(new Error("伺服器沒有回應。手機若登入多個 Google 帳號，請改用無痕視窗或只留一個帳號再試"));
+        reject(new Error("\u4f3a\u670d\u5668\u6c92\u6709\u56de\u61c9\u3002\u624b\u6a5f\u82e5\u767b\u5165\u591a\u500b Google \u5e33\u865f\uff0c\u8acb\u6539\u7528\u7121\u75d5\u8996\u7a97\u6216\u53ea\u7559\u4e00\u500b\u5e33\u865f\u518d\u8a66"));
       }, CALL_TIMEOUT_MS);
       try {
         var runner = google.script.run
@@ -2068,7 +2076,7 @@ body {
       .replace(/[ \t]+/g, " ")
       .replace(/\n{3,}/g, "\n\n")
       .trim()
-      .replace(/^["'“”「『]+|["'“”」』]+$/g, "")
+      .replace(/^["'\u201c\u201d\u300c\u300e]+|["'\u201c\u201d\u300d\u300f]+$/g, "")
       .trim();
   }
 
@@ -2109,7 +2117,7 @@ body {
     if (!Array.isArray(list)) {
       list = [];
     }
-    var next = { ts: Date.now(), text: entry.text, source: entry.source || "直接" };
+    var next = { ts: Date.now(), text: entry.text, source: entry.source || "\u76f4\u63a5" };
     if (entry.original && entry.original !== entry.text) {
       next.original = entry.original;
     }
@@ -2127,7 +2135,7 @@ body {
     var target = $("#history-list");
     target.textContent = "";
     if (!Array.isArray(list) || list.length === 0) {
-      target.append(el("li", "hint", historyEnabled() ? "還沒有紀錄。" : "紀錄已關閉。"));
+      target.append(el("li", "hint", historyEnabled() ? "\u9084\u6c92\u6709\u7d00\u9304\u3002" : "\u7d00\u9304\u5df2\u95dc\u9589\u3002"));
       return;
     }
     list.forEach(function (item) {
@@ -2135,7 +2143,7 @@ body {
       var button = el("button", "history-item");
       button.type = "button";
       button.append(el("span", "history-item__text", item.text));
-      button.append(el("span", "history-item__meta", formatTime(item.ts) + " · " + item.source));
+      button.append(el("span", "history-item__meta", formatTime(item.ts) + " \u00b7 " + item.source));
       button.addEventListener("click", function () {
         closeMenu();
         setQuery(item.original || item.text);
@@ -2159,8 +2167,8 @@ body {
     listStatus.dataset.state = "";
     listStatus.textContent =
       cache && cache.items && cache.items.length
-        ? "院內清單 " + cache.items.length + " 項 · " + formatTime(cache.fetchedAt) + " 更新"
-        : "尚未讀到院內清單";
+        ? "\u9662\u5167\u6e05\u55ae " + cache.items.length + " \u9805 \u00b7 " + formatTime(cache.fetchedAt) + " \u66f4\u65b0"
+        : "\u5c1a\u672a\u8b80\u5230\u9662\u5167\u6e05\u55ae";
   }
 
   function applyCache(next) {
@@ -2215,24 +2223,24 @@ body {
     loaded = true;
     syncStatus.dataset.state = "success";
     syncStatus.textContent =
-      "已讀取 " + formulary.count + " 項（" + formulary.withAtc + " 項有 ATC 碼）" + (changed ? "" : "，清單沒有變動");
+      "\u5df2\u8b80\u53d6 " + formulary.count + " \u9805\uff08" + formulary.withAtc + " \u9805\u6709 ATC \u78bc\uff09" + (changed ? "" : "\uff0c\u6e05\u55ae\u6c92\u6709\u8b8a\u52d5");
     return changed;
   }
 
   function syncFromServer(options) {
     var quiet = options && options.quiet;
     if (!quiet) {
-      syncStatus.textContent = "讀取中…";
+      syncStatus.textContent = "\u8b80\u53d6\u4e2d\u2026";
     }
     return call("getBootstrap", (cache && cache.fingerprint) || "", token, !quiet)
       .then(applyBoot)
       .catch(function (error) {
         syncStatus.dataset.state = "error";
-        syncStatus.textContent = "讀取失敗：" + error.message;
+        syncStatus.textContent = "\u8b80\u53d6\u5931\u6557\uff1a" + error.message;
         renderListStatus(
           cache && cache.items && cache.items.length
-            ? "讀取失敗，使用 " + formatTime(cache.fetchedAt) + " 的清單"
-            : "讀取院內清單失敗：" + error.message,
+            ? "\u8b80\u53d6\u5931\u6557\uff0c\u4f7f\u7528 " + formatTime(cache.fetchedAt) + " \u7684\u6e05\u55ae"
+            : "\u8b80\u53d6\u9662\u5167\u6e05\u55ae\u5931\u6557\uff1a" + error.message,
           "error"
         );
         return false;
@@ -2243,12 +2251,12 @@ body {
 
   // The NHI page has no in-house code, so search it by the 7-character ATC
   // (every NHI product with that ingredient) or, failing that, the generic
-  // name at the start of the in-house name ("Rosuvastatin (Crestor) …").
+  // name at the start of the in-house name ("Rosuvastatin (Crestor) \u2026").
   function nhiQuery(item) {
     if (item.atc && item.atc.length === 7) {
       return item.atc;
     }
-    var lead = String(item.name || "").split(/[(（\d]/)[0].trim();
+    var lead = String(item.name || "").split(/[(\uff08\d]/)[0].trim();
     return lead.length >= 2 ? lead : "";
   }
 
@@ -2256,11 +2264,11 @@ body {
     if (!config.nhiUrl || !query) {
       return null;
     }
-    var link = el("a", "tag tag--nhi", "健保給付");
+    var link = el("a", "tag tag--nhi", "\u5065\u4fdd\u7d66\u4ed8");
     link.href = config.nhiUrl + "?" + new URLSearchParams({ q: query }).toString();
     link.target = "_blank";
     link.rel = "noopener";
-    link.title = "查健保給付規定（以 " + query + " 搜尋）";
+    link.title = "\u67e5\u5065\u4fdd\u7d66\u4ed8\u898f\u5b9a\uff08\u4ee5 " + query + " \u641c\u5c0b\uff09";
     return link;
   }
 
@@ -2271,11 +2279,11 @@ body {
     if (item.code) {
       var code = el("button", "tag tag--code", item.code);
       code.type = "button";
-      code.title = "複製批價碼";
+      code.title = "\u8907\u88fd\u6279\u50f9\u78bc";
       code.addEventListener("click", function () {
         copyText(item.code).then(function (ok) {
           if (ok) {
-            flash(code, "已複製");
+            flash(code, "\u5df2\u8907\u88fd");
           }
         });
       });
@@ -2289,13 +2297,13 @@ body {
     }
     var prices = [];
     if (item.nhiPrice && item.nhiPrice !== "0") {
-      prices.push("健保 " + item.nhiPrice);
+      prices.push("\u5065\u4fdd " + item.nhiPrice);
     }
     if (item.selfPrice && item.selfPrice !== "0") {
-      prices.push("自費 " + item.selfPrice);
+      prices.push("\u81ea\u8cbb " + item.selfPrice);
     }
     if (prices.length) {
-      meta.append(el("span", "tag", prices.join(" · ")));
+      meta.append(el("span", "tag", prices.join(" \u00b7 ")));
     }
     if (Array.isArray(item.locations) && item.locations.length) {
       meta.append(
@@ -2304,9 +2312,9 @@ body {
           "tag tag--muted",
           item.locations
             .map(function (loc) {
-              return String(loc[0]).replace(/儲位$/, "") + " " + loc[1];
+              return String(loc[0]).replace(/\u5132\u4f4d$/, "") + " " + loc[1];
             })
-            .join(" · ")
+            .join(" \u00b7 ")
         )
       );
     }
@@ -2320,7 +2328,7 @@ body {
 
   function section(title, items, hint) {
     var wrap = el("section", "result-section");
-    wrap.append(el("h2", "", title + "（" + items.length + "）"));
+    wrap.append(el("h2", "", title + "\uff08" + items.length + "\uff09"));
     if (hint) {
       wrap.append(el("p", "result-section__hint", hint));
     }
@@ -2344,7 +2352,7 @@ body {
         return true;
       })
       .map(function (m) {
-        return m.ingredient + " → ATC " + m.atcClass + (m.className ? " " + m.className : "");
+        return m.ingredient + " \u2192 ATC " + m.atcClass + (m.className ? " " + m.className : "");
       });
   }
 
@@ -2352,25 +2360,25 @@ body {
     extra = extra || {};
     var target = extra.target || results;
     target.textContent = "";
-    var short = result.query.length > 40 ? result.query.slice(0, 40) + "…" : result.query;
+    var short = result.query.length > 40 ? result.query.slice(0, 40) + "\u2026" : result.query;
 
     if (result.direct.length) {
-      target.append(section("院內有此藥", result.direct));
+      target.append(section("\u9662\u5167\u6709\u6b64\u85e5", result.direct));
     } else {
-      target.append(el("p", "empty", "院內沒有符合「" + short + "」的品項。"));
+      target.append(el("p", "empty", "\u9662\u5167\u6c92\u6709\u7b26\u5408\u300c" + short + "\u300d\u7684\u54c1\u9805\u3002"));
       if (extra.rxclass && extra.rxclass.length) {
-        target.append(el("p", "note note--source", "NLM RxClass：" + uniqueLines(extra.rxclass).join("、")));
+        target.append(el("p", "note note--source", "NLM RxClass\uff1a" + uniqueLines(extra.rxclass).join("\u3001")));
       } else if (extra.aiGuesses && extra.aiGuesses.length) {
         target.append(
           el(
             "p",
             "note note--ai",
-            "AI 推測（請自行核對）：" +
+            "AI \u63a8\u6e2c\uff08\u8acb\u81ea\u884c\u6838\u5c0d\uff09\uff1a" +
               extra.aiGuesses
                 .map(function (g) {
-                  return g.name + " → ATC " + g.atc;
+                  return g.name + " \u2192 ATC " + g.atc;
                 })
-                .join("、")
+                .join("\u3001")
           )
         );
       }
@@ -2378,7 +2386,7 @@ body {
         target.append(el("p", "note", text));
       });
       if (extra.offerRemote) {
-        var button = el("button", "button rx-button", "找院內同成分、同機轉品項");
+        var button = el("button", "button rx-button", "\u627e\u9662\u5167\u540c\u6210\u5206\u3001\u540c\u6a5f\u8f49\u54c1\u9805");
         button.type = "button";
         button.addEventListener("click", function () {
           runSearch(result.query, { allowRemote: true });
@@ -2390,9 +2398,9 @@ body {
     if (result.sameIngredient.length) {
       target.append(
         section(
-          result.direct.length ? "同成分其他品項" : "院內同成分品項",
+          result.direct.length ? "\u540c\u6210\u5206\u5176\u4ed6\u54c1\u9805" : "\u9662\u5167\u540c\u6210\u5206\u54c1\u9805",
           result.sameIngredient,
-          extra.rxclass ? "藥名含 RxNorm 成分名" : "ATC 7 碼相同"
+          extra.rxclass ? "\u85e5\u540d\u542b RxNorm \u6210\u5206\u540d" : "ATC 7 \u78bc\u76f8\u540c"
         )
       );
     }
@@ -2400,9 +2408,9 @@ body {
       var name = extra.classNames && extra.classNames[group.atcClass];
       target.append(
         section(
-          "同機轉 · ATC " + group.atcClass + (name ? " " + name : ""),
+          "\u540c\u6a5f\u8f49 \u00b7 ATC " + group.atcClass + (name ? " " + name : ""),
           group.items,
-          "ATC 前 5 碼相同（同一化學／藥理次分類）"
+          "ATC \u524d 5 \u78bc\u76f8\u540c\uff08\u540c\u4e00\u5316\u5b78\uff0f\u85e5\u7406\u6b21\u5206\u985e\uff09"
         )
       );
     });
@@ -2412,7 +2420,7 @@ body {
       !result.classes.length &&
       ((extra.rxclass && extra.rxclass.length) || (extra.aiGuesses && extra.aiGuesses.length))
     ) {
-      target.append(el("p", "note", "院內也沒有同成分或同機轉的品項。"));
+      target.append(el("p", "note", "\u9662\u5167\u4e5f\u6c92\u6709\u540c\u6210\u5206\u6216\u540c\u6a5f\u8f49\u7684\u54c1\u9805\u3002"));
     }
   }
 
@@ -2458,21 +2466,21 @@ body {
 
     var head = el("div", "mention-sheet__head");
     head.append(el("h2", "", term));
-    var close = el("button", "icon-button icon-button--small", "✕");
+    var close = el("button", "icon-button icon-button--small", "\u2715");
     close.type = "button";
-    close.setAttribute("aria-label", "關閉");
+    close.setAttribute("aria-label", "\u95dc\u9589");
     close.addEventListener("click", hideMention);
     head.append(close);
 
     var actions = el("div", "button-row");
-    var ask = linkButton("問 OpenEvidence", oeUrl(term), true);
+    var ask = linkButton("\u554f OpenEvidence", oeUrl(term), true);
     ask.addEventListener("click", function () {
-      recordHistory({ text: term, source: "文中藥名" });
+      recordHistory({ text: term, source: "\u6587\u4e2d\u85e5\u540d" });
     });
     actions.append(ask);
     if (config.nhiUrl) {
       var nhiTerm = (local.direct[0] && nhiQuery(local.direct[0])) || term;
-      actions.append(linkButton("健保給付", config.nhiUrl + "?" + new URLSearchParams({ q: nhiTerm }), false));
+      actions.append(linkButton("\u5065\u4fdd\u7d66\u4ed8", config.nhiUrl + "?" + new URLSearchParams({ q: nhiTerm }), false));
     }
     actions.append(
       linkButton("UpToDate", "https://www.uptodate.com/contents/search?" + new URLSearchParams({ search: term }), false)
@@ -2510,17 +2518,17 @@ body {
 
     var wrap = el("section", "result-section passage-view");
     if (unique.length) {
-      wrap.append(el("h2", "", "文中的院內藥名（" + unique.length + "）"));
-      wrap.append(el("p", "result-section__hint", "點藥名看院內品項、健保給付，或直接問 OpenEvidence。"));
+      wrap.append(el("h2", "", "\u6587\u4e2d\u7684\u9662\u5167\u85e5\u540d\uff08" + unique.length + "\uff09"));
+      wrap.append(el("p", "result-section__hint", "\u9ede\u85e5\u540d\u770b\u9662\u5167\u54c1\u9805\u3001\u5065\u4fdd\u7d66\u4ed8\uff0c\u6216\u76f4\u63a5\u554f OpenEvidence\u3002"));
       var chips = el("div", "mention-chips");
       unique.forEach(function (term) {
         chips.append(mentionButton(term, "mention-chip"));
       });
       wrap.append(chips);
     } else {
-      wrap.append(el("h2", "", "文中沒有找到院內藥名"));
+      wrap.append(el("h2", "", "\u6587\u4e2d\u6c92\u6709\u627e\u5230\u9662\u5167\u85e5\u540d"));
       wrap.append(
-        el("p", "result-section__hint", "沒標出的藥名可以單獨貼上查詢，會找院內同成分、同機轉的品項。")
+        el("p", "result-section__hint", "\u6c92\u6a19\u51fa\u7684\u85e5\u540d\u53ef\u4ee5\u55ae\u7368\u8cbc\u4e0a\u67e5\u8a62\uff0c\u6703\u627e\u9662\u5167\u540c\u6210\u5206\u3001\u540c\u6a5f\u8f49\u7684\u54c1\u9805\u3002")
       );
     }
 
@@ -2544,7 +2552,7 @@ body {
     return F.rxclassTerms(query).length > 0 || config.ai;
   }
 
-  // Typing only searches the list on the phone; RxClass / AI run on 查院內,
+  // Typing only searches the list on the phone; RxClass / AI run on \u67e5\u9662\u5167,
   // Enter, or text that arrives from another app.
   function runSearch(text, options) {
     var allowRemote = options && options.allowRemote;
@@ -2557,7 +2565,7 @@ body {
     }
     if (!index.items.length) {
       results.textContent = "";
-      results.append(el("p", "empty", loaded ? "讀不到院內清單，請到右上角重新讀取。" : "院內清單讀取中…"));
+      results.append(el("p", "empty", loaded ? "\u8b80\u4e0d\u5230\u9662\u5167\u6e05\u55ae\uff0c\u8acb\u5230\u53f3\u4e0a\u89d2\u91cd\u65b0\u8b80\u53d6\u3002" : "\u9662\u5167\u6e05\u55ae\u8b80\u53d6\u4e2d\u2026"));
       return Promise.resolve();
     }
 
@@ -2581,14 +2589,14 @@ body {
       if (!config.ai) {
         return renderResult(local, { notes: notes });
       }
-      results.append(el("p", "loading", "請 AI 推測 ATC…"));
+      results.append(el("p", "loading", "\u8acb AI \u63a8\u6e2c ATC\u2026"));
       return call("guessAtc", query, token).then(
         function (guesses) {
           if (mine !== searchToken) {
             return;
           }
           if (!guesses.length) {
-            notes.push("AI 也認不出藥名。");
+            notes.push("AI \u4e5f\u8a8d\u4e0d\u51fa\u85e5\u540d\u3002");
             return renderResult(local, { notes: notes });
           }
           var related = F.lookupByAtc(
@@ -2604,7 +2612,7 @@ body {
         },
         function (error) {
           if (mine === searchToken) {
-            notes.push("AI 推測失敗：" + error.message);
+            notes.push("AI \u63a8\u6e2c\u5931\u6557\uff1a" + error.message);
             renderResult(local, { notes: notes });
           }
         }
@@ -2613,17 +2621,17 @@ body {
 
     renderResult(local);
     if (F.rxclassTerms(query).length === 0) {
-      notes.push("RxClass 只認得英文藥名。");
+      notes.push("RxClass \u53ea\u8a8d\u5f97\u82f1\u6587\u85e5\u540d\u3002");
       return tryAi();
     }
-    results.append(el("p", "loading", "向 NLM RxClass 查詢 ATC…"));
+    results.append(el("p", "loading", "\u5411 NLM RxClass \u67e5\u8a62 ATC\u2026"));
     return call("lookupRxClass", query, token).then(
       function (rxclass) {
         if (mine !== searchToken) {
           return;
         }
         if (!rxclass.length) {
-          notes.push("RxClass 查不到這個藥名。");
+          notes.push("RxClass \u67e5\u4e0d\u5230\u9019\u500b\u85e5\u540d\u3002");
           return tryAi();
         }
         var related = F.lookupByIngredients(index, rxclass);
@@ -2636,7 +2644,7 @@ body {
         if (mine !== searchToken) {
           return;
         }
-        notes.push("RxClass 查詢失敗：" + error.message);
+        notes.push("RxClass \u67e5\u8a62\u5931\u6557\uff1a" + error.message);
         return tryAi();
       }
     );
@@ -2678,7 +2686,7 @@ body {
     updateAiAsk();
     aiStatus.hidden = false;
     aiStatus.dataset.state = "";
-    aiStatus.textContent = "AI 改寫中…";
+    aiStatus.textContent = "AI \u6539\u5beb\u4e2d\u2026";
     aiPanel.hidden = false;
     setAiBusy(true);
     call("rewriteText", kind, original, token)
@@ -2690,7 +2698,7 @@ body {
       .catch(function (error) {
         if (mine === aiToken) {
           aiStatus.dataset.state = "error";
-          aiStatus.textContent = "改寫失敗：" + error.message;
+          aiStatus.textContent = "\u6539\u5beb\u5931\u6557\uff1a" + error.message;
         }
       })
       .then(function () {
@@ -2716,7 +2724,7 @@ body {
   $("#ai-copy").addEventListener("click", function (event) {
     var button = event.currentTarget;
     copyText(aiOutput.value.trim()).then(function (ok) {
-      flash(button, ok ? "已複製" : "請手動複製");
+      flash(button, ok ? "\u5df2\u8907\u88fd" : "\u8acb\u624b\u52d5\u8907\u88fd");
     });
   });
 
@@ -2771,7 +2779,7 @@ body {
   });
 
   // Pasting from the iOS callout (the page can't read the clipboard by
-  // itself) searches right away, so copy → open → paste is the whole flow.
+  // itself) searches right away, so copy \u2192 open \u2192 paste is the whole flow.
   queryInput.addEventListener("paste", function () {
     setTimeout(function () {
       var clean = cleanSharedText(queryInput.value);
@@ -2786,7 +2794,7 @@ body {
   $("#paste").addEventListener("click", function () {
     var fail = function () {
       queryInput.focus();
-      renderListStatus("這個瀏覽器不允許直接讀取剪貼簿，請長按輸入框貼上", "error");
+      renderListStatus("\u9019\u500b\u700f\u89bd\u5668\u4e0d\u5141\u8a31\u76f4\u63a5\u8b80\u53d6\u526a\u8cbc\u7c3f\uff0c\u8acb\u9577\u6309\u8f38\u5165\u6846\u8cbc\u4e0a", "error");
       setTimeout(function () {
         renderListStatus();
       }, 3000);
@@ -2821,7 +2829,7 @@ body {
       event.preventDefault();
       return;
     }
-    recordHistory({ text: text, source: "直接" });
+    recordHistory({ text: text, source: "\u76f4\u63a5" });
   });
 
   // --------------------------------------------------------------- menu
@@ -2840,14 +2848,14 @@ body {
     var withToken = function (query) {
       return config.appUrl + "?" + query + (token ? "&k=" + encodeURIComponent(token) : "");
     };
-    $("#shortcut-lookup").textContent = config.appUrl ? withToken("api=lookup") + "&q=" : "（部署後才會顯示網址）";
-    $("#shortcut-pico").textContent = config.appUrl ? withToken("api=pico") + "&q=" : "（部署後才會顯示網址）";
-    $("#shortcut-nhi").textContent = config.nhiUrl ? config.nhiUrl + "?q=" : "（未設定健保查詢頁）";
+    $("#shortcut-lookup").textContent = config.appUrl ? withToken("api=lookup") + "&q=" : "\uff08\u90e8\u7f72\u5f8c\u624d\u6703\u986f\u793a\u7db2\u5740\uff09";
+    $("#shortcut-pico").textContent = config.appUrl ? withToken("api=pico") + "&q=" : "\uff08\u90e8\u7f72\u5f8c\u624d\u6703\u986f\u793a\u7db2\u5740\uff09";
+    $("#shortcut-nhi").textContent = config.nhiUrl ? config.nhiUrl + "?q=" : "\uff08\u672a\u8a2d\u5b9a\u5065\u4fdd\u67e5\u8a62\u9801\uff09";
     $("#page-url").textContent = config.appUrl
       ? config.appUrl + "?" + (token ? "k=" + encodeURIComponent(token) + "&" : "") + "q="
-      : "（部署後才會顯示網址）";
+      : "\uff08\u90e8\u7f72\u5f8c\u624d\u6703\u986f\u793a\u7db2\u5740\uff09";
     if (!syncStatus.textContent && cache && cache.items) {
-      syncStatus.textContent = "目前清單：" + cache.items.length + " 項，" + formatTime(cache.fetchedAt) + " 更新";
+      syncStatus.textContent = "\u76ee\u524d\u6e05\u55ae\uff1a" + cache.items.length + " \u9805\uff0c" + formatTime(cache.fetchedAt) + " \u66f4\u65b0";
     }
     if (typeof menu.showModal === "function") {
       menu.showModal();
@@ -2862,7 +2870,7 @@ body {
   });
 
   $("#history-clear").addEventListener("click", function () {
-    if (window.confirm("清除這支手機上的查詢紀錄？")) {
+    if (window.confirm("\u6e05\u9664\u9019\u652f\u624b\u6a5f\u4e0a\u7684\u67e5\u8a62\u7d00\u9304\uff1f")) {
       writeStore(HISTORY_KEY, []);
       renderHistory();
     }
@@ -2878,23 +2886,23 @@ body {
 
   // --------------------------------------------------------------- boot
 
-  // Any script error ends up on screen instead of an endless 讀取中….
+  // Any script error ends up on screen instead of an endless \u8b80\u53d6\u4e2d\u2026.
   window.addEventListener("error", function (event) {
-    renderListStatus("頁面錯誤：" + (event.message || "未知錯誤") + "（請截圖回報）", "error");
+    renderListStatus("\u9801\u9762\u932f\u8aa4\uff1a" + (event.message || "\u672a\u77e5\u932f\u8aa4") + "\uff08\u8acb\u622a\u5716\u56de\u5831\uff09", "error");
   });
 
   // doGet writes the list, settings and ?q= / ?k= into the page (OE_BOOT).
   var BOOT = window.OE_BOOT || null;
   var PAGE_BUILD = window.OE_PAGE_BUILD || "";
-  $(".footnote").append(el("span", "footnote__build", " 版本 " + PAGE_BUILD));
+  $(".footnote").append(el("span", "footnote__build", " \u7248\u672c " + PAGE_BUILD));
 
   // Code.gs and Index.html must come from the same version.
   function versionProblem() {
     if (!BOOT) {
-      return "伺服器程式（Code.gs）不是最新版：請重新貼上 Code.gs，再「管理部署作業 → 編輯 → 新版本」";
+      return "\u4f3a\u670d\u5668\u7a0b\u5f0f\uff08Code.gs\uff09\u4e0d\u662f\u6700\u65b0\u7248\uff1a\u8acb\u91cd\u65b0\u8cbc\u4e0a Code.gs\uff0c\u518d\u300c\u7ba1\u7406\u90e8\u7f72\u4f5c\u696d \u2192 \u7de8\u8f2f \u2192 \u65b0\u7248\u672c\u300d";
     }
     if (BOOT.build && PAGE_BUILD && BOOT.build !== PAGE_BUILD) {
-      return "Code.gs（" + BOOT.build + "）和 Index（" + PAGE_BUILD + "）版本不同：請兩個檔都重新貼上並部署新版本";
+      return "Code.gs\uff08" + BOOT.build + "\uff09\u548c Index\uff08" + PAGE_BUILD + "\uff09\u7248\u672c\u4e0d\u540c\uff1a\u8acb\u5169\u500b\u6a94\u90fd\u91cd\u65b0\u8cbc\u4e0a\u4e26\u90e8\u7f72\u65b0\u7248\u672c";
     }
     return "";
   }
@@ -2930,16 +2938,16 @@ body {
       runSearch(incoming, { allowRemote: true });
     }
   } else if (BOOT && BOOT.error) {
-    renderListStatus("讀取院內清單失敗：" + BOOT.error, "error");
+    renderListStatus("\u8b80\u53d6\u9662\u5167\u6e05\u55ae\u5931\u6557\uff1a" + BOOT.error, "error");
     loaded = true;
   } else if (BOOT && BOOT.needsToken && !token) {
-    renderListStatus("請用帶有存取碼（k=）的連結打開本頁", "error");
+    renderListStatus("\u8acb\u7528\u5e36\u6709\u5b58\u53d6\u78bc\uff08k=\uff09\u7684\u9023\u7d50\u6253\u958b\u672c\u9801", "error");
     loaded = true;
   } else {
     // Opened without the list embedded (no ?k= on this visit, but the phone
     // remembers one): fetch it with the saved code.
     if (!cache || !cache.items || !cache.items.length) {
-      renderListStatus("讀取院內清單中…");
+      renderListStatus("\u8b80\u53d6\u9662\u5167\u6e05\u55ae\u4e2d\u2026");
     }
     syncFromServer({ quiet: true }).then(function () {
       loaded = true;

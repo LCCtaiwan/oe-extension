@@ -27,6 +27,15 @@ function inline(tag, body, source) {
   return `<${tag}>\n${body}\n</${tag}>`;
 }
 
+// Non-ASCII characters in the inlined code (Chinese strings, a BOM and CJK
+// ranges inside regular expressions) are written as \uXXXX escapes, so
+// copying the file into the Apps Script editor can't alter or normalise them.
+// Escapes mean the same thing in strings, template literals, regular
+// expressions and comments.
+function toAscii(code) {
+  return code.replace(/[^\x00-\x7f]/g, (ch) => `\\u${ch.charCodeAt(0).toString(16).padStart(4, "0")}`);
+}
+
 function replaceMarker(html, marker, replacement) {
   const token = `<!-- @${marker} -->`;
   if (!html.includes(token)) {
@@ -63,7 +72,9 @@ html = replaceMarker(html, "style", inline("style", `${webCss}\n${pageCss}`, "th
 html = replaceMarker(
   html,
   "script",
-  `${inline("script", formulary, "src/formulary.js")}\n${inline("script", pageJs, "gas/page.js")}`,
+  // One script: the matcher and the page either both run or the startup check
+  // reports why not.
+  inline("script", toAscii(`${formulary}\n;\n${pageJs}`), "src/formulary.js + gas/page.js"),
 );
 
 const outputs = [

@@ -6,6 +6,9 @@
   "use strict";
 
   var F = window.OEFormulary;
+  if (!F) {
+    throw new Error("院內比對模組沒有載入");
+  }
 
   var CACHE_KEY = "oeGasFormulary";
   var CONFIG_KEY = "oeGasConfig";
