@@ -202,6 +202,13 @@ platform-specific behavior; confirm a real result and return to the original app
 on the target iPhone before calling the solution verified. Existing
 `ACCESS_TOKEN` checks still apply when configured.
 
+On 2026-11-09 the user confirmed all three acceptance checks on their iPhone:
+the shared drug name populated the lookup and produced formulary results in the
+embedded view, Chrome did not launch, and closing returned to the original
+reading position. This verifies the existing authorized Web View flow on that
+device, not unauthenticated API access or fresh Google login on other devices.
+No data-access policy was changed to obtain this result.
+
 See the [illustrated troubleshooting guide](docs/iphone-shortcut-guide.html) and
 [HTTP findings and iPhone acceptance checks](docs/iphone-shortcut-diagnosis.md).
 
