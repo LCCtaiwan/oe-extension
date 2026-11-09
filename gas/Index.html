@@ -851,7 +851,7 @@ body {
     <!-- Runs before the big scripts: if they fail to load or start, say so
          instead of leaving 讀取中… on screen. -->
     <script>
-      window.OE_PAGE_BUILD = "1e63f63";
+      window.OE_PAGE_BUILD = "1142032";
       (function () {
         var status = document.getElementById("list-status");
         var errors = [];
@@ -2937,6 +2937,10 @@ body {
   var incoming = cleanSharedText((BOOT && BOOT.q) || "");
   if (incoming) {
     setQuery(incoming, { search: false });
+    if (index.items.length && !(BOOT && BOOT.formulary && BOOT.formulary.items)) {
+      // Show a remembered list's result while the fresh list loads.
+      runSearch(incoming, { allowRemote: false });
+    }
   } else {
     queryInput.focus({ preventScroll: true });
   }

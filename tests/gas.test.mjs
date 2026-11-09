@@ -143,21 +143,23 @@ function bootOf(page) {
   return JSON.parse(match[1]);
 }
 
-// doGet serves Index with a phone viewport and the list written into the page.
+// Shortcut visits render before reading the sheet; ordinary visits embed it.
 {
-  const { context, output } = makeRuntime();
+  const { context, output, calls } = makeRuntime();
   context.doGet({ parameter: { q: "冠脂妥" } });
   assert.deepEqual(output.calls[0], ["file", "Index"]);
   assert.ok(output.calls.some(([name, key, value]) => name === "addMetaTag" && key === "viewport" && /width=device-width/.test(value)));
   assert.ok(output.calls.some(([name, title]) => name === "setTitle" && title === "院內查藥"));
   const boot = bootOf(output.html);
-  assert.equal(boot.formulary.items.length, 3);
+  assert.equal(boot.formulary, undefined);
   assert.equal(boot.q, "冠脂妥");
-  assert.equal(boot.nhiUrl, "https://lcctaiwan.github.io/chemodrugstable-query/nhi/");
+  assert.equal(calls.sheetReads, 0);
   // Code.gs and Index.html carry the same build id, so the page can spot a mix-up.
   const pageBuild = output.html.match(/window\.OE_PAGE_BUILD = "([0-9a-f]{7})"/)[1];
   assert.equal(boot.build, pageBuild);
   assert.doesNotMatch(output.html, /__OE_BUILD__/);
+  context.doGet({ parameter: {} });
+  assert.equal(bootOf(output.html).formulary.items.length, 3);
 }
 
 // Template injection survives statement formatting; it is not an exact-text replacement.
@@ -173,16 +175,20 @@ for (const statement of [
   const pageContext = { window: {} };
   vm.runInNewContext(bootScript, pageContext);
   assert.equal(pageContext.window.OE_BOOT.q, "statin");
-  assert.equal(pageContext.window.OE_BOOT.formulary.items.length, 3);
+  assert.equal(pageContext.window.OE_BOOT.formulary, undefined);
 }
 
 // With ACCESS_TOKEN: no list without the right k=; with it, k is handed to the page.
 {
-  const { context, output } = makeRuntime({ props: { ACCESS_TOKEN: "s3cret" } });
+  const { context, output, calls } = makeRuntime({ props: { ACCESS_TOKEN: "s3cret" } });
   context.doGet({ parameter: { q: "x" } });
   const locked = bootOf(output.html);
   assert.deepEqual({ needsToken: locked.needsToken, q: locked.q, items: locked.formulary }, { needsToken: true, q: "x", items: undefined });
   assert.match(locked.build, /^[0-9a-f]{7}$/);
+  context.doGet({ parameter: { q: "x", k: "s3cret" } });
+  assert.equal(bootOf(output.html).k, "s3cret");
+  assert.equal(bootOf(output.html).formulary, undefined);
+  assert.equal(calls.sheetReads, 0);
   context.doGet({ parameter: { k: "s3cret" } });
   const boot = bootOf(output.html);
   assert.equal(boot.k, "s3cret");

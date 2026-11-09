@@ -1012,6 +1012,10 @@
   var incoming = cleanSharedText((BOOT && BOOT.q) || "");
   if (incoming) {
     setQuery(incoming, { search: false });
+    if (index.items.length && !(BOOT && BOOT.formulary && BOOT.formulary.items)) {
+      // Show a remembered list's result while the fresh list loads.
+      runSearch(incoming, { allowRemote: false });
+    }
   } else {
     queryInput.focus({ preventScroll: true });
   }

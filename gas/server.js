@@ -55,12 +55,12 @@ function doGet(e) {
   if (params.api) {
     return ContentService.createTextOutput(handleApi_(params)).setMimeType(ContentService.MimeType.TEXT);
   }
-  // The list, settings and ?q= are written into the page itself, so it never
-  // waits on a google.script.run call (which can hang, e.g. on a phone signed
-  // in to several Google accounts) before it can search.
+  // A Shortcut opens with ?q=. Send its page before reading the sheet so the
+  // Web View appears promptly; the page then loads the list with getBootstrap.
+  // Ordinary visits keep the embedded list in case google.script.run stalls.
   var boot;
   try {
-    boot = pageBoot_(params);
+    boot = pageBoot_(params, Boolean(params.q || params.text));
   } catch (error) {
     boot = { error: String(error && error.message ? error.message : error), q: clip_(params.q) };
   }
@@ -88,10 +88,13 @@ function doPost(e) {
   })).setMimeType(ContentService.MimeType.TEXT);
 }
 
-function pageBoot_(params) {
+function pageBoot_(params, fast) {
   var q = clip_(params.q || params.text);
   if (!tokenOk_(params.k)) {
     return { needsToken: true, q: q, build: typeof OE_BUILD === "undefined" ? "" : OE_BUILD };
+  }
+  if (fast) {
+    return { q: q, k: params.k ? String(params.k) : "", build: typeof OE_BUILD === "undefined" ? "" : OE_BUILD };
   }
   var boot = getBootstrap("", params.k);
   boot.build = typeof OE_BUILD === "undefined" ? "" : OE_BUILD;
