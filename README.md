@@ -166,6 +166,11 @@ web server.
 
 ## Phone App on Apps Script (院內查藥 · OE)
 
+To set up **your own Google Sheet, GAS deployment, and phone entry point**, follow
+the [Traditional Chinese setup guide for agents, iPhone, and Android](docs/own-gas-setup.md).
+An exported iPhone `.shortcut` contains its creator's deployment URL; use your
+own `/exec` URL when making a shortcut.
+
 `gas/` is the extension rebuilt for phones as a Google Apps Script web app,
 bound to the formulary Google Sheet so the list never has to be published.
 It has the in-house lookup (院內有此藥 / 同成分 / 同機轉, RxClass fallback),
