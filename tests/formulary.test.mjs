@@ -267,3 +267,26 @@ assert.notEqual(
   F.formularyFingerprint(plain(fromSheet.items)),
   F.formularyFingerprint(plain(fromSheet.items).slice(1))
 );
+
+// --- mentions in a pasted answer -----------------------------------------
+{
+  const index = F.createIndex([
+    { code: "OROSU", name: "Rosuvastatin (Crestor) 冠脂妥 10mg/tab", atc: "C10AA07" },
+    { code: "OATOR40", name: "Atorvastatin (Tulip) 妥寧 40 mg/tab", atc: "C10AA05" },
+    { code: "ODAPA", name: "Dapagliflozin (Forxiga) 福適佳 10mg/tab", atc: "A10BK01" },
+    { code: "OMET", name: "Metformin hydrochloride 500mg/tab", atc: "A10BA02" },
+  ]);
+  const text =
+    "In patients with CKD, high-intensity statins such as Rosuvastatin or atorvastatin are recommended; " +
+    "SGLT2 inhibitors (dapagliflozin) reduce hospitalization. Metformin hydrochloride needs dose adjustment. 院內可用冠脂妥。";
+  const mentions = plain(F.findMentions(index, text));
+  assert.deepEqual(
+    mentions.map((m) => m.term),
+    ["Rosuvastatin", "atorvastatin", "dapagliflozin", "Metformin", "冠脂妥"],
+  );
+  mentions.forEach((m) => assert.equal(text.slice(m.start, m.end), m.term));
+  // Prose and salt words are never highlighted, even if they occur in names.
+  assert.ok(!mentions.some((m) => /hydrochloride|patients|statins/i.test(m.term)));
+  assert.deepEqual(plain(F.findMentions(index, "")), []);
+  assert.deepEqual(plain(F.findMentions(F.createIndex([]), text)), []);
+}

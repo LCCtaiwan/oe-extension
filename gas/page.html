@@ -31,7 +31,7 @@
           autocomplete="off"
           autocapitalize="off"
           spellcheck="false"
-          placeholder="貼上或輸入：藥名、句子或臨床問題"
+          placeholder="貼上藥名，或整段 OpenEvidence 答案（會標出院內藥名）"
         ></textarea>
         <div class="compose__actions">
           <button type="button" id="paste" class="button">貼上</button>
@@ -69,6 +69,8 @@
 
       <p class="footnote">⚠️ 請勿輸入病人資料。<span id="ai-note" hidden>AI 改寫會把文字送到 Groq。</span></p>
     </main>
+
+    <section id="mention-sheet" class="mention-sheet" aria-live="polite" hidden></section>
 
     <nav id="engines" class="engines" aria-label="外部查詢" data-empty="true">
       <a id="link-oe" class="engine engine--primary" target="_blank" rel="noopener">OpenEvidence</a>

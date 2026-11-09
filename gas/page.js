@@ -443,17 +443,18 @@
 
   function renderResult(result, extra) {
     extra = extra || {};
-    results.textContent = "";
+    var target = extra.target || results;
+    target.textContent = "";
     var short = result.query.length > 40 ? result.query.slice(0, 40) + "…" : result.query;
 
     if (result.direct.length) {
-      results.append(section("院內有此藥", result.direct));
+      target.append(section("院內有此藥", result.direct));
     } else {
-      results.append(el("p", "empty", "院內沒有符合「" + short + "」的品項。"));
+      target.append(el("p", "empty", "院內沒有符合「" + short + "」的品項。"));
       if (extra.rxclass && extra.rxclass.length) {
-        results.append(el("p", "note note--source", "NLM RxClass：" + uniqueLines(extra.rxclass).join("、")));
+        target.append(el("p", "note note--source", "NLM RxClass：" + uniqueLines(extra.rxclass).join("、")));
       } else if (extra.aiGuesses && extra.aiGuesses.length) {
-        results.append(
+        target.append(
           el(
             "p",
             "note note--ai",
@@ -467,7 +468,7 @@
         );
       }
       (extra.notes || []).forEach(function (text) {
-        results.append(el("p", "note", text));
+        target.append(el("p", "note", text));
       });
       if (extra.offerRemote) {
         var button = el("button", "button rx-button", "找院內同成分、同機轉品項");
@@ -475,12 +476,12 @@
         button.addEventListener("click", function () {
           runSearch(result.query, { allowRemote: true });
         });
-        results.append(button);
+        target.append(button);
       }
     }
 
     if (result.sameIngredient.length) {
-      results.append(
+      target.append(
         section(
           result.direct.length ? "同成分其他品項" : "院內同成分品項",
           result.sameIngredient,
@@ -490,7 +491,7 @@
     }
     result.classes.forEach(function (group) {
       var name = extra.classNames && extra.classNames[group.atcClass];
-      results.append(
+      target.append(
         section(
           "同機轉 · ATC " + group.atcClass + (name ? " " + name : ""),
           group.items,
@@ -504,8 +505,132 @@
       !result.classes.length &&
       ((extra.rxclass && extra.rxclass.length) || (extra.aiGuesses && extra.aiGuesses.length))
     ) {
-      results.append(el("p", "note", "院內也沒有同成分或同機轉的品項。"));
+      target.append(el("p", "note", "院內也沒有同成分或同機轉的品項。"));
     }
+  }
+
+  // ------------------------------------------------- pasted answer mode
+
+  // A pasted paragraph (an OpenEvidence answer, a note) is shown with the
+  // in-house drug names marked; tapping one opens its result in a sheet,
+  // like the extension's toolbar over a selection.
+  var PASSAGE_MIN_LENGTH = 40;
+  var mentionSheet = $("#mention-sheet");
+
+  function isPassage(text) {
+    return text.length >= PASSAGE_MIN_LENGTH || /\n/.test(text);
+  }
+
+  function mentionKey(term) {
+    return term.normalize("NFKC").toLowerCase();
+  }
+
+  function hideMention() {
+    mentionSheet.hidden = true;
+    mentionSheet.textContent = "";
+    results.querySelectorAll(".mention.is-active").forEach(function (node) {
+      node.classList.remove("is-active");
+    });
+  }
+
+  function linkButton(label, href, primary) {
+    var link = el("a", "button button--link" + (primary ? " button--primary" : ""), label);
+    link.href = href;
+    link.target = "_blank";
+    link.rel = "noopener";
+    return link;
+  }
+
+  function showMention(term) {
+    var key = mentionKey(term);
+    results.querySelectorAll(".mention").forEach(function (node) {
+      node.classList.toggle("is-active", node.dataset.key === key);
+    });
+    var local = F.lookup(index, term);
+    mentionSheet.textContent = "";
+
+    var head = el("div", "mention-sheet__head");
+    head.append(el("h2", "", term));
+    var close = el("button", "icon-button icon-button--small", "✕");
+    close.type = "button";
+    close.setAttribute("aria-label", "關閉");
+    close.addEventListener("click", hideMention);
+    head.append(close);
+
+    var actions = el("div", "button-row");
+    var ask = linkButton("問 OpenEvidence", oeUrl(term), true);
+    ask.addEventListener("click", function () {
+      recordHistory({ text: term, source: "文中藥名" });
+    });
+    actions.append(ask);
+    if (config.nhiUrl) {
+      var nhiTerm = (local.direct[0] && nhiQuery(local.direct[0])) || term;
+      actions.append(linkButton("健保給付", config.nhiUrl + "?" + new URLSearchParams({ q: nhiTerm }), false));
+    }
+    actions.append(
+      linkButton("UpToDate", "https://www.uptodate.com/contents/search?" + new URLSearchParams({ search: term }), false)
+    );
+
+    var body = el("div", "results");
+    renderResult(local, { target: body });
+    mentionSheet.append(head, actions, body);
+    mentionSheet.hidden = false;
+    mentionSheet.scrollTop = 0;
+  }
+
+  function mentionButton(term, className) {
+    var button = el("button", className, term);
+    button.type = "button";
+    button.dataset.key = mentionKey(term);
+    button.addEventListener("click", function () {
+      showMention(term);
+    });
+    return button;
+  }
+
+  function renderPassage(text) {
+    results.textContent = "";
+    var mentions = F.findMentions(index, text);
+    var unique = [];
+    var seen = {};
+    mentions.forEach(function (mention) {
+      var key = mentionKey(mention.term);
+      if (!seen[key]) {
+        seen[key] = true;
+        unique.push(mention.term);
+      }
+    });
+
+    var wrap = el("section", "result-section passage-view");
+    if (unique.length) {
+      wrap.append(el("h2", "", "文中的院內藥名（" + unique.length + "）"));
+      wrap.append(el("p", "result-section__hint", "點藥名看院內品項、健保給付，或直接問 OpenEvidence。"));
+      var chips = el("div", "mention-chips");
+      unique.forEach(function (term) {
+        chips.append(mentionButton(term, "mention-chip"));
+      });
+      wrap.append(chips);
+    } else {
+      wrap.append(el("h2", "", "文中沒有找到院內藥名"));
+      wrap.append(
+        el("p", "result-section__hint", "沒標出的藥名可以單獨貼上查詢，會找院內同成分、同機轉的品項。")
+      );
+    }
+
+    var passage = el("div", "passage");
+    var cursor = 0;
+    mentions.forEach(function (mention) {
+      if (mention.start > cursor) {
+        passage.append(document.createTextNode(text.slice(cursor, mention.start)));
+      }
+      passage.append(mentionButton(mention.term, "mention"));
+      cursor = mention.end;
+    });
+    if (cursor < text.length) {
+      passage.append(document.createTextNode(text.slice(cursor)));
+    }
+    wrap.append(passage);
+    results.append(wrap);
   }
 
   function canGoRemote(query) {
@@ -518,6 +643,7 @@
     var allowRemote = options && options.allowRemote;
     var query = String(text || "").trim();
     var mine = ++searchToken;
+    hideMention();
     if (!query) {
       results.textContent = "";
       return Promise.resolve();
@@ -525,6 +651,11 @@
     if (!index.items.length) {
       results.textContent = "";
       results.append(el("p", "empty", loaded ? "讀不到院內清單，請到右上角重新讀取。" : "院內清單讀取中…"));
+      return Promise.resolve();
+    }
+
+    if (isPassage(query)) {
+      renderPassage(query);
       return Promise.resolve();
     }
 
@@ -763,6 +894,12 @@
         setQuery(clean);
       }
     }, fail);
+  });
+
+  document.addEventListener("keydown", function (event) {
+    if (event.key === "Escape" && !mentionSheet.hidden) {
+      hideMention();
+    }
   });
 
   $("#clear").addEventListener("click", function () {

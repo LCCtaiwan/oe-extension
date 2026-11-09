@@ -800,6 +800,76 @@
 		};
 	}
 
+	// ------------------------------------------------------- mentions in prose
+
+	// Words that sit in many in-house names (salts, forms) or in clinical prose;
+	// highlighting them in a pasted answer would be noise.
+	const MENTION_STOP_WORDS = new Set(
+		(
+			"hydrochloride hydrobromide sodium potassium calcium magnesium acid " +
+			"acetate sulfate sulphate phosphate chloride citrate maleate mesylate " +
+			"besylate tartrate succinate fumarate bromide dihydrate monohydrate " +
+			"anhydrous extract compound forte retard depot mite junior adult adults " +
+			"children child normal saline glucose dextrose vitamin"
+		).split(/\s+/),
+	);
+	// A keyword in more in-house items than this is too generic to point at one drug.
+	const MENTION_MAX_DOCUMENT_FREQUENCY = 30;
+
+	function mentionKeyword(index, keyword) {
+		const frequency = index.documentFrequency.get(keyword);
+		return (
+			frequency > 0 &&
+			frequency <= MENTION_MAX_DOCUMENT_FREQUENCY &&
+			!MENTION_STOP_WORDS.has(keyword) &&
+			!RXCLASS_TERM_STOP_WORDS.has(keyword)
+		);
+	}
+
+	// Spans of `text` that name an in-house drug, for highlighting a pasted
+	// answer: [{ start, end, term }] sorted and non-overlapping, where
+	// text.slice(start, end) === term. Longer matches win over shorter ones.
+	function findMentions(index, text) {
+		const source = String(text || "");
+		if (!source || !index?.items?.length) {
+			return [];
+		}
+		const candidates = [];
+
+		const latin = /[A-Za-z]+/g;
+		let match;
+		while ((match = latin.exec(source))) {
+			const keyword = match[0].normalize("NFKC").toLowerCase();
+			if (keyword.length >= MIN_LATIN_KEYWORD && mentionKeyword(index, keyword)) {
+				candidates.push({ start: match.index, end: match.index + match[0].length });
+			}
+		}
+
+		if (/[㐀-鿿豈-﫿]/.test(source)) {
+			for (const keyword of index.documentFrequency.keys()) {
+				if (!/[㐀-鿿豈-﫿]/.test(keyword) || !mentionKeyword(index, keyword)) {
+					continue;
+				}
+				let from = source.indexOf(keyword);
+				while (from !== -1) {
+					candidates.push({ start: from, end: from + keyword.length });
+					from = source.indexOf(keyword, from + keyword.length);
+				}
+			}
+		}
+
+		candidates.sort((a, b) => b.end - b.start - (a.end - a.start) || a.start - b.start);
+		const taken = [];
+		for (const span of candidates) {
+			if (!taken.some((other) => span.start < other.end && other.start < span.end)) {
+				taken.push(span);
+			}
+		}
+		return taken
+			.sort((a, b) => a.start - b.start)
+			.map((span) => ({ ...span, term: source.slice(span.start, span.end) }));
+	}
+
 	root.OEFormulary = {
 		FORMULARY_ITEMS_STORAGE_KEY,
 		FORMULARY_META_STORAGE_KEY,
@@ -822,6 +892,7 @@
 		rxclassTerms,
 		parseRxClassResponse,
 		lookupByIngredients,
+		findMentions,
 	};
 })(typeof globalThis !== "undefined" ? globalThis : self);
 

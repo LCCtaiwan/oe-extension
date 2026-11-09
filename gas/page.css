@@ -247,3 +247,115 @@ body {
   font-weight: 650;
   text-decoration: none;
 }
+
+/* --------------------------------------------- pasted answer mode */
+
+.passage {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+  background: var(--surface);
+  font-size: 16px;
+  line-height: 1.85;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.mention,
+.mention-chip {
+  font: inherit;
+  color: var(--primary-strong);
+  cursor: pointer;
+}
+
+.mention {
+  display: inline;
+  margin: 0;
+  border: 0;
+  border-bottom: 2px solid var(--primary);
+  border-radius: 4px 4px 0 0;
+  padding: 0 2px;
+  background: color-mix(in srgb, var(--primary) 14%, transparent);
+  font-weight: 650;
+}
+
+.mention.is-active {
+  background: var(--primary);
+  color: var(--primary-fg);
+}
+
+.mention-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.mention-chip {
+  min-height: 38px;
+  border: 1px solid var(--primary-strong);
+  border-radius: 999px;
+  padding: 0 14px;
+  background: var(--surface);
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.mention-chip.is-active {
+  background: var(--primary);
+  color: var(--primary-fg);
+}
+
+/* Sits above the engine bar, like the extension's pop-up over a selection. */
+.mention-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(68px + env(safe-area-inset-bottom));
+  z-index: 7;
+  display: grid;
+  gap: 10px;
+  max-height: 62vh;
+  overflow-y: auto;
+  padding: 14px 16px 16px;
+  border-top: 1px solid var(--border);
+  border-radius: 16px 16px 0 0;
+  background: var(--surface);
+  box-shadow: 0 -8px 24px var(--shadow);
+}
+
+.mention-sheet__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.mention-sheet__head h2 {
+  margin: 0;
+  font-size: 18px;
+  overflow-wrap: anywhere;
+}
+
+.mention-sheet .results {
+  gap: 12px;
+}
+
+@media (min-width: 760px) {
+  .mention-sheet {
+    left: 50%;
+    right: auto;
+    width: 720px;
+    transform: translateX(-50%);
+    border: 1px solid var(--border);
+  }
+}
+
+.mention-sheet .button-row {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr 1fr;
+}
+
+.mention-sheet .button-row .button {
+  padding: 0 8px;
+  font-size: 14px;
+}
