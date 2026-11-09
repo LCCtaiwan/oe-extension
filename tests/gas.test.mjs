@@ -132,6 +132,7 @@ function makeRuntime({ props: initialProps = {}, groq = () => ({ code: 200, cont
   assert.equal(boot.ai, false);
   assert.deepEqual(boot.prompts, [{ name: "Dx" }, { name: "Guideline" }]);
   assert.equal(boot.appUrl, "https://script.google.com/macros/s/ID/exec");
+  assert.equal(boot.nhiUrl, "https://lcctaiwan.github.io/chemodrugstable-query/nhi/");
 
   // Same fingerprint as the phone's copy -> items left out.
   const again = plain(context.getBootstrap(boot.formulary.fingerprint));
@@ -145,6 +146,13 @@ function makeRuntime({ props: initialProps = {}, groq = () => ({ code: 200, cont
   const boot = plain(context.getBootstrap(""));
   assert.deepEqual(boot.prompts, []);
   assert.equal(boot.ai, true);
+}
+
+// NHI_URL: "-" hides the 健保 links, an https URL replaces the default.
+{
+  assert.equal(makeRuntime({ props: { NHI_URL: "-" } }).context.getBootstrap("").nhiUrl, "");
+  assert.equal(makeRuntime({ props: { NHI_URL: "https://x.example/nhi/" } }).context.getBootstrap("").nhiUrl, "https://x.example/nhi/");
+  assert.equal(makeRuntime({ props: { NHI_URL: "javascript:alert(1)" } }).context.getBootstrap("").nhiUrl, "https://lcctaiwan.github.io/chemodrugstable-query/nhi/");
 }
 
 // RxClass: brand name resolves, results are cached per term.

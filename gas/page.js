@@ -34,7 +34,7 @@
 
   var index = F.createIndex([]);
   var cache = null;
-  var config = { ai: false, prompts: [], appUrl: "" };
+  var config = { ai: false, prompts: [], appUrl: "", nhiUrl: "" };
   var searchToken = 0;
   var aiToken = 0;
   var aiSource = null; // { name, original } of the text in the AI panel
@@ -249,7 +249,7 @@
   }
 
   function applyConfig(next) {
-    config = next || { ai: false, prompts: [], appUrl: "" };
+    config = next || { ai: false, prompts: [], appUrl: "", nhiUrl: "" };
     aiButtons.textContent = "";
     aiActions.hidden = !config.ai;
     $("#ai-note").hidden = !config.ai;
@@ -287,7 +287,12 @@
         };
         writeStore(CACHE_KEY, next);
         applyCache(next);
-        var nextConfig = { ai: boot.ai, prompts: boot.prompts || [], appUrl: boot.appUrl || "" };
+        var nextConfig = {
+          ai: boot.ai,
+          prompts: boot.prompts || [],
+          appUrl: boot.appUrl || "",
+          nhiUrl: boot.nhiUrl || "",
+        };
         writeStore(CONFIG_KEY, nextConfig);
         applyConfig(nextConfig);
         syncStatus.dataset.state = "success";
@@ -309,6 +314,29 @@
   }
 
   // ------------------------------------------------------------ results
+
+  // The NHI page has no in-house code, so search it by the 7-character ATC
+  // (every NHI product with that ingredient) or, failing that, the generic
+  // name at the start of the in-house name ("Rosuvastatin (Crestor) …").
+  function nhiQuery(item) {
+    if (item.atc && item.atc.length === 7) {
+      return item.atc;
+    }
+    var lead = String(item.name || "").split(/[(（\d]/)[0].trim();
+    return lead.length >= 2 ? lead : "";
+  }
+
+  function nhiLink(query) {
+    if (!config.nhiUrl || !query) {
+      return null;
+    }
+    var link = el("a", "tag tag--nhi", "健保給付");
+    link.href = config.nhiUrl + "?" + new URLSearchParams({ q: query }).toString();
+    link.target = "_blank";
+    link.rel = "noopener";
+    link.title = "查健保給付規定（以 " + query + " 搜尋）";
+    return link;
+  }
 
   function drugItem(item) {
     var row = el("li", "drug");
@@ -355,6 +383,10 @@
             .join(" · ")
         )
       );
+    }
+    var nhi = nhiLink(nhiQuery(item));
+    if (nhi) {
+      meta.append(nhi);
     }
     row.append(meta);
     return row;
@@ -681,6 +713,19 @@
     runSearch(queryInput.value, { allowRemote: true });
   });
 
+  // Pasting from the iOS callout (the page can't read the clipboard by
+  // itself) searches right away, so copy → open → paste is the whole flow.
+  queryInput.addEventListener("paste", function () {
+    setTimeout(function () {
+      var clean = cleanSharedText(queryInput.value);
+      if (clean) {
+        clearTimeout(typingTimer);
+        setQuery(clean);
+        queryInput.blur();
+      }
+    }, 0);
+  });
+
   $("#paste").addEventListener("click", function () {
     var fail = function () {
       queryInput.focus();
@@ -734,7 +779,10 @@
     };
     $("#shortcut-lookup").textContent = config.appUrl ? withToken("api=lookup") + "&q=" : "（部署後才會顯示網址）";
     $("#shortcut-pico").textContent = config.appUrl ? withToken("api=pico") + "&q=" : "（部署後才會顯示網址）";
-    $("#page-url").textContent = config.appUrl ? withToken("v=1") + "&q=" : "（部署後才會顯示網址）";
+    $("#shortcut-nhi").textContent = config.nhiUrl ? config.nhiUrl + "?q=" : "（未設定健保查詢頁）";
+    $("#page-url").textContent = config.appUrl
+      ? config.appUrl + "?" + (token ? "k=" + encodeURIComponent(token) + "&" : "") + "q="
+      : "（部署後才會顯示網址）";
     if (!syncStatus.textContent && cache && cache.items) {
       syncStatus.textContent = "目前清單：" + cache.items.length + " 項，" + formatTime(cache.fetchedAt) + " 更新";
     }

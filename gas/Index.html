@@ -471,6 +471,11 @@ code {
 
 /* GAS page additions on top of web/style.css (inlined first by the build). */
 
+/* Components set display: grid/flex, which would beat the hidden attribute. */
+[hidden] {
+  display: none !important;
+}
+
 body {
   /* Room for the fixed engine bar. */
   padding-bottom: calc(76px + env(safe-area-inset-bottom));
@@ -705,6 +710,15 @@ body {
   font-size: 14px;
 }
 
+.tag--nhi {
+  min-height: 32px;
+  border-color: var(--accent);
+  background: var(--surface);
+  color: var(--accent);
+  font-weight: 650;
+  text-decoration: none;
+}
+
 </style>
   </head>
   <body>
@@ -812,44 +826,47 @@ body {
         </section>
 
         <section class="settings__section">
-          <h3>不用切換 App：iPhone 捷徑</h3>
-          <p class="hint">
-            在 OpenEvidence、PDF 或任何 App 選取文字 → 分享 →「院內查藥」，結果直接跳在原本的畫面上，同一個選單一鍵問
-            OpenEvidence。也可以設成「背面輕點」：複製文字後敲手機背面兩下。
-          </p>
+          <h3>最簡單：不用設定</h3>
+          <ol class="hint steps">
+            <li>Safari 打開本頁 → 下方「分享」→「加入主畫面」。</li>
+            <li>之後在任何 App 複製藥名 → 點主畫面的「院內查藥」→ 長按輸入框選「貼上」，會自動查詢。</li>
+          </ol>
+        </section>
+
+        <section class="settings__section">
+          <h3>從分享選單開啟（2 個動作的捷徑）</h3>
+          <ol class="hint steps">
+            <li>「捷徑」App → ＋ → 命名「院內查藥」→ 點 ⓘ 開啟「在分享表單中顯示」。</li>
+            <li>加入「URL 編碼」（輸入是「捷徑輸入」）。</li>
+            <li>
+              加入「打開 URL」，貼上這串，最後接上變數「已 URL 編碼的文字」：
+              <code id="page-url"></code>
+            </li>
+          </ol>
+          <p class="hint">之後選取文字 → 分享 →「院內查藥」，本頁會帶著文字打開並查好。做好後長按捷徑 → 分享 →「拷貝 iCloud 連結」傳給同事，他們點一下就裝好，不用自己做。</p>
+        </section>
+
+        <section class="settings__section">
           <details>
-            <summary>建立捷徑（約 3 分鐘，做一次）</summary>
+            <summary>進階：結果直接跳在原本的 App 上</summary>
             <ol class="hint steps">
-              <li>「捷徑」App → ＋ → 命名「院內查藥」→ 點 ⓘ 開啟「在分享表單中顯示」，類型勾「文字」；「如果沒有輸入」選「取得剪貼簿」。</li>
-              <li>加入「URL 編碼」，輸入選「捷徑輸入」。</li>
+              <li>同上建立捷徑，「如果沒有輸入」選「取得剪貼簿」，加入「URL 編碼」。</li>
               <li>
-                加入「取得 URL 內容」，網址貼上這串，最後接上變數「URL 編碼的文字」：
+                加入「取得 URL 內容」，網址貼上這串並接上「已 URL 編碼的文字」：
                 <code id="shortcut-lookup"></code>
               </li>
-              <li>加入「從選單中選擇」，提示選變數「URL 的內容」，選項：「問 OpenEvidence」「PICO 後問 OE」「完成」。</li>
+              <li>加入「從選單中選擇」，提示選「URL 的內容」，選項：「問 OpenEvidence」「查健保給付」「PICO 後問 OE」「完成」。</li>
               <li>
-                「問 OpenEvidence」底下加「打開 URL」：
-                <code>https://www.openevidence.com/ask?configName=prod&amp;attachments=%5B%5D&amp;query=</code> 接上「URL 編碼的文字」。
+                「問 OpenEvidence」底下「打開 URL」：
+                <code>https://www.openevidence.com/ask?configName=prod&amp;attachments=%5B%5D&amp;query=</code> 接上「已 URL 編碼的文字」。
               </li>
+              <li>「查健保給付」底下「打開 URL」：<code id="shortcut-nhi"></code> 接上「已 URL 編碼的文字」。</li>
               <li>
-                「PICO 後問 OE」（需設定 Groq）：先「取得 URL 內容」
-                <code id="shortcut-pico"></code> 接上「URL 編碼的文字」，再「URL 編碼」它的結果，最後「打開 URL」同上一步的
-                OpenEvidence 網址接上這個新結果。
+                「PICO 後問 OE」（需設定 Groq）：「取得 URL 內容」<code id="shortcut-pico"></code> 接上「已 URL
+                編碼的文字」→「URL 編碼」它的結果 →「打開 URL」OpenEvidence 網址接上這個新結果。
               </li>
-              <li>做好後長按捷徑 → 分享 →「拷貝 iCloud 連結」，傳給同事就能直接加入。</li>
+              <li>可再設「背面輕點」：設定 → 輔助使用 → 觸控 → 背面輕點 → 點兩下 →「院內查藥」。</li>
             </ol>
-          </details>
-          <details>
-            <summary>背面輕點（複製後敲兩下）</summary>
-            <p class="hint">設定 → 輔助使用 → 觸控 → 背面輕點 → 點兩下 → 選「院內查藥」。之後複製文字、敲手機背面兩下就會查詢剪貼簿的內容。</p>
-          </details>
-          <details>
-            <summary>開完整頁面 / Android</summary>
-            <p class="hint">完整頁面（可 PICO 改寫、看同機轉全部品項）網址：</p>
-            <code id="page-url"></code>
-            <p class="hint">
-              Android 可用 HTTP Shortcuts 之類支援「分享文字」的 App 呼叫上面「取得 URL 內容」那串網址，並以對話框顯示回應。
-            </p>
           </details>
         </section>
       </form>
@@ -1717,7 +1734,7 @@ body {
 
   var index = F.createIndex([]);
   var cache = null;
-  var config = { ai: false, prompts: [], appUrl: "" };
+  var config = { ai: false, prompts: [], appUrl: "", nhiUrl: "" };
   var searchToken = 0;
   var aiToken = 0;
   var aiSource = null; // { name, original } of the text in the AI panel
@@ -1932,7 +1949,7 @@ body {
   }
 
   function applyConfig(next) {
-    config = next || { ai: false, prompts: [], appUrl: "" };
+    config = next || { ai: false, prompts: [], appUrl: "", nhiUrl: "" };
     aiButtons.textContent = "";
     aiActions.hidden = !config.ai;
     $("#ai-note").hidden = !config.ai;
@@ -1970,7 +1987,12 @@ body {
         };
         writeStore(CACHE_KEY, next);
         applyCache(next);
-        var nextConfig = { ai: boot.ai, prompts: boot.prompts || [], appUrl: boot.appUrl || "" };
+        var nextConfig = {
+          ai: boot.ai,
+          prompts: boot.prompts || [],
+          appUrl: boot.appUrl || "",
+          nhiUrl: boot.nhiUrl || "",
+        };
         writeStore(CONFIG_KEY, nextConfig);
         applyConfig(nextConfig);
         syncStatus.dataset.state = "success";
@@ -1992,6 +2014,29 @@ body {
   }
 
   // ------------------------------------------------------------ results
+
+  // The NHI page has no in-house code, so search it by the 7-character ATC
+  // (every NHI product with that ingredient) or, failing that, the generic
+  // name at the start of the in-house name ("Rosuvastatin (Crestor) …").
+  function nhiQuery(item) {
+    if (item.atc && item.atc.length === 7) {
+      return item.atc;
+    }
+    var lead = String(item.name || "").split(/[(（\d]/)[0].trim();
+    return lead.length >= 2 ? lead : "";
+  }
+
+  function nhiLink(query) {
+    if (!config.nhiUrl || !query) {
+      return null;
+    }
+    var link = el("a", "tag tag--nhi", "健保給付");
+    link.href = config.nhiUrl + "?" + new URLSearchParams({ q: query }).toString();
+    link.target = "_blank";
+    link.rel = "noopener";
+    link.title = "查健保給付規定（以 " + query + " 搜尋）";
+    return link;
+  }
 
   function drugItem(item) {
     var row = el("li", "drug");
@@ -2038,6 +2083,10 @@ body {
             .join(" · ")
         )
       );
+    }
+    var nhi = nhiLink(nhiQuery(item));
+    if (nhi) {
+      meta.append(nhi);
     }
     row.append(meta);
     return row;
@@ -2364,6 +2413,19 @@ body {
     runSearch(queryInput.value, { allowRemote: true });
   });
 
+  // Pasting from the iOS callout (the page can't read the clipboard by
+  // itself) searches right away, so copy → open → paste is the whole flow.
+  queryInput.addEventListener("paste", function () {
+    setTimeout(function () {
+      var clean = cleanSharedText(queryInput.value);
+      if (clean) {
+        clearTimeout(typingTimer);
+        setQuery(clean);
+        queryInput.blur();
+      }
+    }, 0);
+  });
+
   $("#paste").addEventListener("click", function () {
     var fail = function () {
       queryInput.focus();
@@ -2417,7 +2479,10 @@ body {
     };
     $("#shortcut-lookup").textContent = config.appUrl ? withToken("api=lookup") + "&q=" : "（部署後才會顯示網址）";
     $("#shortcut-pico").textContent = config.appUrl ? withToken("api=pico") + "&q=" : "（部署後才會顯示網址）";
-    $("#page-url").textContent = config.appUrl ? withToken("v=1") + "&q=" : "（部署後才會顯示網址）";
+    $("#shortcut-nhi").textContent = config.nhiUrl ? config.nhiUrl + "?q=" : "（未設定健保查詢頁）";
+    $("#page-url").textContent = config.appUrl
+      ? config.appUrl + "?" + (token ? "k=" + encodeURIComponent(token) + "&" : "") + "q="
+      : "（部署後才會顯示網址）";
     if (!syncStatus.textContent && cache && cache.items) {
       syncStatus.textContent = "目前清單：" + cache.items.length + " 項，" + formatTime(cache.fetchedAt) + " 更新";
     }

@@ -1,5 +1,10 @@
 /* GAS page additions on top of web/style.css (inlined first by the build). */
 
+/* Components set display: grid/flex, which would beat the hidden attribute. */
+[hidden] {
+  display: none !important;
+}
+
 body {
   /* Room for the fixed engine bar. */
   padding-bottom: calc(76px + env(safe-area-inset-bottom));
@@ -232,4 +237,13 @@ body {
   flex: 1 1 auto;
   align-items: center;
   font-size: 14px;
+}
+
+.tag--nhi {
+  min-height: 32px;
+  border-color: var(--accent);
+  background: var(--surface);
+  color: var(--accent);
+  font-weight: 650;
+  text-decoration: none;
 }

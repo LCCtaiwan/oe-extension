@@ -11,6 +11,8 @@
 //   AI_DAILY_LIMIT   optional — Groq calls per day for everyone (default 300)
 //   SHEET_NAME       optional — formulary tab (default: first tab)
 //   SPREADSHEET_ID   optional — only if the script is not bound to the sheet
+//   NHI_URL          optional — 健保給付查詢頁 for the 健保 links (default: the
+//                    chemodrugstable-query page; set to "-" to hide the links)
 //   ACCESS_TOKEN     optional — required as ?k= on every call once set (needed
 //                    when the deployment is open to 所有人 for the Shortcut)
 //
@@ -29,6 +31,8 @@ var APP = {
   maxText: 4000,
   aiDailyLimit: 300,
   rxclassCacheSeconds: 6 * 60 * 60,
+  // 健保給付與電子仿單查詢 (LCCtaiwan/chemodrugstable-query); takes ?q=.
+  nhiUrl: "https://lcctaiwan.github.io/chemodrugstable-query/nhi/",
 };
 
 // Same instructions as the Chrome extension (src/background.js).
@@ -193,6 +197,7 @@ function getBootstrap(knownFingerprint, token) {
       return { name: prompt.name };
     }),
     appUrl: appUrl,
+    nhiUrl: nhiUrl_(),
   };
 }
 
@@ -466,6 +471,14 @@ function extractPicoQuestion_(content) {
     }
   }
   return trimmed;
+}
+
+function nhiUrl_() {
+  var value = (PropertiesService.getScriptProperties().getProperty("NHI_URL") || "").trim();
+  if (value === "-") {
+    return "";
+  }
+  return /^https:\/\//.test(value) ? value : APP.nhiUrl;
 }
 
 function clip_(text) {
