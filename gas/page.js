@@ -63,15 +63,29 @@
     }
   }
 
+  var CALL_TIMEOUT_MS = 25000;
+
   function call(name) {
     var args = Array.prototype.slice.call(arguments, 1);
     return new Promise(function (resolve, reject) {
-      var runner = google.script.run
-        .withSuccessHandler(resolve)
-        .withFailureHandler(function (error) {
-          reject(error instanceof Error ? error : new Error(String((error && error.message) || error)));
-        });
-      runner[name].apply(runner, args);
+      var timer = setTimeout(function () {
+        reject(new Error("伺服器沒有回應。手機若登入多個 Google 帳號，請改用無痕視窗或只留一個帳號再試"));
+      }, CALL_TIMEOUT_MS);
+      try {
+        var runner = google.script.run
+          .withSuccessHandler(function (value) {
+            clearTimeout(timer);
+            resolve(value);
+          })
+          .withFailureHandler(function (error) {
+            clearTimeout(timer);
+            reject(error instanceof Error ? error : new Error(String((error && error.message) || error)));
+          });
+        runner[name].apply(runner, args);
+      } catch (error) {
+        clearTimeout(timer);
+        reject(error);
+      }
     });
   }
 
@@ -270,36 +284,41 @@
     });
   }
 
+  // Applies a bootstrap (embedded in the page, or from getBootstrap); returns
+  // whether the list changed.
+  function applyBoot(boot) {
+    var formulary = boot.formulary;
+    var changed = Boolean(formulary.items);
+    var next = {
+      items: changed ? formulary.items : (cache && cache.items) || [],
+      fingerprint: formulary.fingerprint,
+      withAtc: formulary.withAtc,
+      fetchedAt: Date.now(),
+    };
+    writeStore(CACHE_KEY, next);
+    applyCache(next);
+    var nextConfig = {
+      ai: boot.ai,
+      prompts: boot.prompts || [],
+      appUrl: boot.appUrl || "",
+      nhiUrl: boot.nhiUrl || "",
+    };
+    writeStore(CONFIG_KEY, nextConfig);
+    applyConfig(nextConfig);
+    loaded = true;
+    syncStatus.dataset.state = "success";
+    syncStatus.textContent =
+      "已讀取 " + formulary.count + " 項（" + formulary.withAtc + " 項有 ATC 碼）" + (changed ? "" : "，清單沒有變動");
+    return changed;
+  }
+
   function syncFromServer(options) {
     var quiet = options && options.quiet;
     if (!quiet) {
       syncStatus.textContent = "讀取中…";
     }
-    return call("getBootstrap", (cache && cache.fingerprint) || "", token)
-      .then(function (boot) {
-        var formulary = boot.formulary;
-        var changed = Boolean(formulary.items);
-        var next = {
-          items: changed ? formulary.items : cache.items,
-          fingerprint: formulary.fingerprint,
-          withAtc: formulary.withAtc,
-          fetchedAt: Date.now(),
-        };
-        writeStore(CACHE_KEY, next);
-        applyCache(next);
-        var nextConfig = {
-          ai: boot.ai,
-          prompts: boot.prompts || [],
-          appUrl: boot.appUrl || "",
-          nhiUrl: boot.nhiUrl || "",
-        };
-        writeStore(CONFIG_KEY, nextConfig);
-        applyConfig(nextConfig);
-        syncStatus.dataset.state = "success";
-        syncStatus.textContent =
-          "已讀取 " + formulary.count + " 項（" + formulary.withAtc + " 項有 ATC 碼）" + (changed ? "" : "，清單沒有變動");
-        return changed;
-      })
+    return call("getBootstrap", (cache && cache.fingerprint) || "", token, !quiet)
+      .then(applyBoot)
       .catch(function (error) {
         syncStatus.dataset.state = "error";
         syncStatus.textContent = "讀取失敗：" + error.message;
@@ -815,45 +834,55 @@
 
   // --------------------------------------------------------------- boot
 
-  function readIncoming() {
-    return new Promise(function (resolve) {
-      try {
-        google.script.url.getLocation(function (location) {
-          var params = (location && location.parameter) || {};
-          var hash = new URLSearchParams(String((location && location.hash) || "").replace(/^#/, ""));
-          if (params.k) {
-            token = String(params.k);
-            writeStore(TOKEN_KEY, token);
-          }
-          resolve(cleanSharedText(params.q || params.text || hash.get("q") || ""));
-        });
-      } catch (_error) {
-        resolve("");
-      }
-    });
+  // Any script error ends up on screen instead of an endless 讀取中….
+  window.addEventListener("error", function (event) {
+    renderListStatus("頁面錯誤：" + (event.message || "未知錯誤") + "（請截圖回報）", "error");
+  });
+
+  // doGet writes the list, settings and ?q= / ?k= into the page (OE_BOOT).
+  var BOOT = window.OE_BOOT || null;
+  token = readStore(TOKEN_KEY, "") || "";
+  if (BOOT && BOOT.k) {
+    token = String(BOOT.k);
+    writeStore(TOKEN_KEY, token);
   }
 
-  token = readStore(TOKEN_KEY, "") || "";
   applyCache(readStore(CACHE_KEY, null));
   applyConfig(readStore(CONFIG_KEY, null));
+  if (BOOT && BOOT.formulary && BOOT.formulary.items) {
+    applyBoot(BOOT);
+  }
   updateEngines();
 
-  readIncoming().then(function (incoming) {
+  var incoming = cleanSharedText((BOOT && BOOT.q) || "");
+  if (incoming) {
+    setQuery(incoming, { search: false });
+  } else {
+    queryInput.focus({ preventScroll: true });
+  }
+
+  if (loaded) {
     if (incoming) {
-      setQuery(incoming, { search: false });
-      runSearch(incoming, { allowRemote: false });
-    } else {
-      queryInput.focus({ preventScroll: true });
+      runSearch(incoming, { allowRemote: true });
     }
+  } else if (BOOT && BOOT.error) {
+    renderListStatus("讀取院內清單失敗：" + BOOT.error, "error");
+    loaded = true;
+  } else if (BOOT && BOOT.needsToken && !token) {
+    renderListStatus("請用帶有存取碼（k=）的連結打開本頁", "error");
+    loaded = true;
+  } else {
+    // Opened without the list embedded (no ?k= on this visit, but the phone
+    // remembers one): fetch it with the saved code.
     if (!cache || !cache.items || !cache.items.length) {
       renderListStatus("讀取院內清單中…");
     }
-    syncFromServer({ quiet: true }).then(function (changed) {
+    syncFromServer({ quiet: true }).then(function () {
       loaded = true;
       var text = queryInput.value.trim();
-      if (text && (incoming || changed)) {
+      if (text) {
         runSearch(text, { allowRemote: Boolean(incoming) });
       }
     });
-  });
+  }
 })();

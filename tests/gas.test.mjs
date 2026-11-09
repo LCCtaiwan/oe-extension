@@ -29,15 +29,23 @@ const RX = { lipitor: [["atorvastatin", "C10AA", "HMG CoA reductase inhibitors"]
 function makeRuntime({ props: initialProps = {}, groq = () => ({ code: 200, content: '{"question":"Q?"}' }), prompts = PROMPTS } = {}) {
   const props = { ...initialProps };
   const cacheStore = {};
-  const calls = { rxclass: [], groq: [] };
+  const calls = { rxclass: [], groq: [], sheetReads: 0 };
   const response = (status, body) => ({ getResponseCode: () => status, getContentText: () => body });
-  const sheet = (rows) => ({ getDataRange: () => ({ getDisplayValues: () => rows }) });
+  const sheet = (rows) => ({
+    getDataRange: () => ({
+      getDisplayValues: () => {
+        if (rows === SHEET) calls.sheetReads += 1;
+        return rows;
+      },
+    }),
+  });
   const tabs = { 院內清單: sheet(SHEET) };
   if (prompts) tabs["自訂提示"] = sheet(prompts);
   const output = { calls: [] };
   const chain = new Proxy(output, {
     get(target, key) {
       if (key === "calls") return target.calls;
+      if (key === "html") return target.html;
       return (...args) => {
         target.calls.push([key, ...args]);
         return chain;
@@ -63,8 +71,10 @@ function makeRuntime({ props: initialProps = {}, groq = () => ({ code: 200, cont
     },
     CacheService: {
       getScriptCache: () => ({
+        get: (key) => (key in cacheStore ? cacheStore[key] : null),
         getAll: (keys) => Object.fromEntries(keys.filter((k) => k in cacheStore).map((k) => [k, cacheStore[k]])),
         putAll: (values) => Object.assign(cacheStore, values),
+        remove: (key) => delete cacheStore[key],
       }),
     },
     LockService: { getScriptLock: () => ({ waitLock() {}, releaseLock() {} }) },
@@ -75,7 +85,16 @@ function makeRuntime({ props: initialProps = {}, groq = () => ({ code: 200, cont
       MimeType: { TEXT: "text/plain" },
       createTextOutput: (text) => ({ text, setMimeType() { return this; } }),
     },
-    HtmlService: { createHtmlOutputFromFile: (name) => (output.calls.push(["file", name]), chain) },
+    HtmlService: {
+      createHtmlOutputFromFile: (name) => {
+        output.calls.push(["file", name]);
+        return { getContent: () => html };
+      },
+      createHtmlOutput: (content) => {
+        output.html = content;
+        return chain;
+      },
+    },
     UrlFetchApp: {
       fetchAll: (requests) =>
         requests.map((request) => {
@@ -113,13 +132,70 @@ function makeRuntime({ props: initialProps = {}, groq = () => ({ code: 200, cont
   return { context, props, calls, output, plain };
 }
 
-// doGet serves Index with a phone viewport.
+// Pulls window.OE_BOOT back out of a served page.
+function bootOf(page) {
+  const match = page.match(/<script>window\.OE_BOOT = ([\s\S]*?);<\/script>/);
+  assert.ok(match, "OE_BOOT script missing");
+  assert.doesNotMatch(match[1], /<\//, "embedded JSON must not close the script tag");
+  return JSON.parse(match[1]);
+}
+
+// doGet serves Index with a phone viewport and the list written into the page.
 {
   const { context, output } = makeRuntime();
-  context.doGet({ parameter: {} });
+  context.doGet({ parameter: { q: "冠脂妥" } });
   assert.deepEqual(output.calls[0], ["file", "Index"]);
   assert.ok(output.calls.some(([name, key, value]) => name === "addMetaTag" && key === "viewport" && /width=device-width/.test(value)));
   assert.ok(output.calls.some(([name, title]) => name === "setTitle" && title === "院內查藥"));
+  const boot = bootOf(output.html);
+  assert.equal(boot.formulary.items.length, 3);
+  assert.equal(boot.q, "冠脂妥");
+  assert.equal(boot.nhiUrl, "https://lcctaiwan.github.io/chemodrugstable-query/nhi/");
+}
+
+// With ACCESS_TOKEN: no list without the right k=; with it, k is handed to the page.
+{
+  const { context, output } = makeRuntime({ props: { ACCESS_TOKEN: "s3cret" } });
+  context.doGet({ parameter: { q: "x" } });
+  assert.deepEqual(bootOf(output.html), { needsToken: true, q: "x" });
+  context.doGet({ parameter: { k: "s3cret" } });
+  const boot = bootOf(output.html);
+  assert.equal(boot.k, "s3cret");
+  assert.equal(boot.formulary.count, 3);
+}
+
+// A sheet error is shown on the page instead of breaking it.
+{
+  const { context, output } = makeRuntime();
+  context.SpreadsheetApp.getActiveSpreadsheet = () => null;
+  context.doGet({ parameter: {} });
+  assert.match(bootOf(output.html).error, /找不到試算表/);
+}
+
+// "</script>" in a drug name can't break out of the embedded JSON.
+{
+  const { context, output } = makeRuntime();
+  SHEET.push(["OX", "Evil </script><script>alert(1)</script> 10mg", "", "", "", "", "", "", "O"]);
+  try {
+    context.doGet({ parameter: {} });
+    assert.equal(bootOf(output.html).formulary.items[3].name, "Evil </script><script>alert(1)</script> 10mg");
+  } finally {
+    SHEET.pop();
+  }
+}
+
+// The parsed list is cached; onEdit (any sheet edit) and a manual refresh re-read it.
+{
+  const { context, calls } = makeRuntime();
+  context.getBootstrap("");
+  context.getBootstrap("");
+  context.doGet({ parameter: {} });
+  assert.equal(calls.sheetReads, 1);
+  context.onEdit();
+  context.getBootstrap("");
+  assert.equal(calls.sheetReads, 2);
+  context.getBootstrap("", "", true);
+  assert.equal(calls.sheetReads, 3);
 }
 
 // Bootstrap: list, prompt names only (never the prompt text), AI off without a key.
@@ -235,6 +311,7 @@ function makeRuntime({ props: initialProps = {}, groq = () => ({ code: 200, cont
 // Index.html: everything inlined, both scripts compile, no leftover markers.
 {
   assert.doesNotMatch(html, /<!-- @(style|script) -->/);
+  assert.equal(html.split("/*@boot*/null").length, 2, "exactly one boot placeholder");
   assert.doesNotMatch(html, /<script[^>]+src=/, "HtmlService pages can't load local scripts");
   assert.doesNotMatch(html, /<\?/, "no Apps Script scriptlets expected");
   const scripts = [...html.matchAll(/<script>\n([\s\S]*?)\n<\/script>/g)].map((m) => m[1]);

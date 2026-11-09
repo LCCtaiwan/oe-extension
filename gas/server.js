@@ -55,9 +55,42 @@ function doGet(e) {
   if (params.api) {
     return ContentService.createTextOutput(handleApi_(params)).setMimeType(ContentService.MimeType.TEXT);
   }
-  return HtmlService.createHtmlOutputFromFile("Index")
+  // The list, settings and ?q= are written into the page itself, so it never
+  // waits on a google.script.run call (which can hang, e.g. on a phone signed
+  // in to several Google accounts) before it can search.
+  var boot;
+  try {
+    boot = pageBoot_(params);
+  } catch (error) {
+    boot = { error: String(error && error.message ? error.message : error), q: clip_(params.q) };
+  }
+  var html = HtmlService.createHtmlOutputFromFile("Index")
+    .getContent()
+    .replace("/*@boot*/null", function () {
+      return safeJson_(boot);
+    });
+  return HtmlService.createHtmlOutput(html)
     .setTitle(APP.name)
     .addMetaTag("viewport", "width=device-width, initial-scale=1, viewport-fit=cover");
+}
+
+function pageBoot_(params) {
+  var q = clip_(params.q || params.text);
+  if (!tokenOk_(params.k)) {
+    return { needsToken: true, q: q };
+  }
+  var boot = getBootstrap("", params.k);
+  boot.q = q;
+  boot.k = params.k ? String(params.k) : "";
+  return boot;
+}
+
+// JSON that is safe inside <script>: no "</script>", no JS line separators.
+function safeJson_(value) {
+  return JSON.stringify(value)
+    .replace(/</g, "\\u003c")
+    .replace(/\u2028/g, "\\u2028")
+    .replace(/\u2029/g, "\\u2029");
 }
 
 // ------------------------------------------------------------ access token
@@ -65,9 +98,13 @@ function doGet(e) {
 // Shortcuts can't sign in to Google, so the shortcut needs a deployment that
 // anyone can reach. ACCESS_TOKEN (script property) then keeps the list to
 // people who were given the link: every call must carry it as ?k=.
-function checkToken_(token) {
+function tokenOk_(token) {
   var expected = (PropertiesService.getScriptProperties().getProperty("ACCESS_TOKEN") || "").trim();
-  if (expected && String(token || "").trim() !== expected) {
+  return !expected || String(token || "").trim() === expected;
+}
+
+function checkToken_(token) {
+  if (!tokenOk_(token)) {
     throw new Error("連結缺少或帶錯存取碼（k=），請向管理者要新的連結");
   }
 }
@@ -118,7 +155,7 @@ function itemLine_(item) {
 
 // The same lookup as the page (list -> RxClass), condensed for a pop-up.
 function lookupText_(query) {
-  var index = OEFormulary.createIndex(readFormulary_().items);
+  var index = OEFormulary.createIndex(cachedFormulary_().items);
   var result = OEFormulary.lookup(index, query);
   var lines = [];
   var source = "";
@@ -173,9 +210,9 @@ function lookupText_(query) {
 
 // First call from the page. `knownFingerprint` is the list the phone already
 // has; when unchanged the items are left out so the reply stays small.
-function getBootstrap(knownFingerprint, token) {
+function getBootstrap(knownFingerprint, token, fresh) {
   checkToken_(token);
-  var parsed = readFormulary_();
+  var parsed = fresh ? cachedFormulary_(true) : cachedFormulary_();
   var fingerprint = OEFormulary.formularyFingerprint(parsed.items);
   var unchanged = knownFingerprint && knownFingerprint === fingerprint;
   var appUrl = "";
@@ -349,6 +386,60 @@ function readFormulary_() {
     throw new Error("找不到工作表 " + sheetName);
   }
   return OEFormulary.rowsToFormulary(sheet.getDataRange().getDisplayValues());
+}
+
+// Reading a big sheet takes seconds, so the parsed list is kept in the script
+// cache for a few minutes (in chunks: one cache value holds at most 100 KB).
+// Editing the sheet clears it through onEdit below.
+var FORMULARY_CACHE = { key: "formulary:v1", seconds: 10 * 60, chunk: 90000 };
+
+function cachedFormulary_(refresh) {
+  var cache = CacheService.getScriptCache();
+  if (!refresh) {
+    try {
+      var count = parseInt(cache.get(FORMULARY_CACHE.key + ":n"), 10);
+      if (count > 0) {
+        var keys = [];
+        for (var i = 0; i < count; i += 1) {
+          keys.push(FORMULARY_CACHE.key + ":" + i);
+        }
+        var parts = cache.getAll(keys) || {};
+        var text = keys
+          .map(function (key) {
+            return parts[key];
+          })
+          .join("");
+        if (keys.every(function (key) { return typeof parts[key] === "string"; })) {
+          return JSON.parse(text);
+        }
+      }
+    } catch (_error) {
+      // fall through to a fresh read
+    }
+  }
+  var parsed = readFormulary_();
+  try {
+    var json = JSON.stringify(parsed);
+    var values = {};
+    var n = Math.ceil(json.length / FORMULARY_CACHE.chunk);
+    for (var j = 0; j < n; j += 1) {
+      values[FORMULARY_CACHE.key + ":" + j] = json.slice(j * FORMULARY_CACHE.chunk, (j + 1) * FORMULARY_CACHE.chunk);
+    }
+    values[FORMULARY_CACHE.key + ":n"] = String(n);
+    cache.putAll(values, FORMULARY_CACHE.seconds);
+  } catch (_error) {
+    // A list too big for the cache still works, just without caching.
+  }
+  return parsed;
+}
+
+// Simple trigger: any edit to the sheet makes the next page load re-read it.
+function onEdit() {
+  try {
+    CacheService.getScriptCache().remove(FORMULARY_CACHE.key + ":n");
+  } catch (_error) {
+    // nothing cached
+  }
 }
 
 function readPrompts_() {
