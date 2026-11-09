@@ -88,7 +88,9 @@ function makeRuntime({ props: initialProps = {}, groq = () => ({ code: 200, cont
     HtmlService: {
       createHtmlOutputFromFile: (name) => {
         output.calls.push(["file", name]);
-        return { getContent: () => html };
+        // Like Apps Script: getContent() hands back the file with JS comments
+        // stripped, so nothing may rely on a comment marker.
+        return { getContent: () => html.replace(/\/\*[\s\S]*?\*\//g, "") };
       },
       createHtmlOutput: (content) => {
         output.html = content;
@@ -317,7 +319,7 @@ function bootOf(page) {
 // Index.html: everything inlined, both scripts compile, no leftover markers.
 {
   assert.doesNotMatch(html, /<!-- @(style|script) -->/);
-  assert.equal(html.split("/*@boot*/null").length, 2, "exactly one boot placeholder");
+  assert.equal(html.split('window.OE_BOOT = "__OE_BOOT__";').length, 2, "exactly one boot placeholder");
   assert.doesNotMatch(html, /<script[^>]+src=/, "HtmlService pages can't load local scripts");
   assert.doesNotMatch(html, /<\?/, "no Apps Script scriptlets expected");
   const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
@@ -357,7 +359,7 @@ function bootOf(page) {
     return out;
   };
   for (const [, source] of html.matchAll(/<script>([\s\S]*?)<\/script>/g)) {
-    new vm.Script(stripLineComments(source.replace("/*@boot*/null", "null")));
+    new vm.Script(stripLineComments(source));
   }
 }
 

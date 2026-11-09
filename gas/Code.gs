@@ -2,7 +2,7 @@
 // Paste this whole file into Code.gs in the Apps Script editor of the formulary sheet.
 // Source: src/formulary.js + gas/server.js
 
-var OE_BUILD = "0da234e";
+var OE_BUILD = "b83cc2e";
 
 // Hospital formulary (院內品項) lookup: parse an exported drug list (CSV or
 // XLSX), match a selection against it, and list in-house drugs that share the
@@ -966,10 +966,12 @@ function doGet(e) {
   } catch (error) {
     boot = { error: String(error && error.message ? error.message : error), q: clip_(params.q) };
   }
+  // Matched as a whole statement, not by a comment marker: getContent()
+  // returns the file with JS comments already stripped by Apps Script.
   var html = HtmlService.createHtmlOutputFromFile("Index")
     .getContent()
-    .replace("/*@boot*/null", function () {
-      return safeJson_(boot);
+    .replace(/window\.OE_BOOT = "__OE_BOOT__";/, function () {
+      return "window.OE_BOOT = " + safeJson_(boot) + ";";
     });
   return HtmlService.createHtmlOutput(html)
     .setTitle(APP.name)

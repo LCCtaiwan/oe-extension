@@ -64,10 +64,12 @@ function doGet(e) {
   } catch (error) {
     boot = { error: String(error && error.message ? error.message : error), q: clip_(params.q) };
   }
+  // Matched as a whole statement, not by a comment marker: getContent()
+  // returns the file with JS comments already stripped by Apps Script.
   var html = HtmlService.createHtmlOutputFromFile("Index")
     .getContent()
-    .replace("/*@boot*/null", function () {
-      return safeJson_(boot);
+    .replace(/window\.OE_BOOT = "__OE_BOOT__";/, function () {
+      return "window.OE_BOOT = " + safeJson_(boot) + ";";
     });
   return HtmlService.createHtmlOutput(html)
     .setTitle(APP.name)

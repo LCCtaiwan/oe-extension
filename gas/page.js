@@ -980,7 +980,8 @@
   });
 
   // doGet writes the list, settings and ?q= / ?k= into the page (OE_BOOT).
-  var BOOT = window.OE_BOOT || null;
+  // Still the "__OE_BOOT__" string when Code.gs didn't fill it in.
+  var BOOT = window.OE_BOOT && typeof window.OE_BOOT === "object" ? window.OE_BOOT : null;
   var PAGE_BUILD = window.OE_PAGE_BUILD || "";
   $(".footnote").append(el("span", "footnote__build", " 版本 " + PAGE_BUILD));
 

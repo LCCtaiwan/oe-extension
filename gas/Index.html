@@ -851,7 +851,7 @@ body {
     <!-- Runs before the big scripts: if they fail to load or start, say so
          instead of leaving 讀取中… on screen. -->
     <script>
-      window.OE_PAGE_BUILD = "0da234e";
+      window.OE_PAGE_BUILD = "b83cc2e";
       (function () {
         var status = document.getElementById("list-status");
         var errors = [];
@@ -1013,7 +1013,7 @@ body {
       </form>
     </dialog>
 
-    <script>window.OE_BOOT = /*@boot*/null;</script>
+    <script>window.OE_BOOT = "__OE_BOOT__";</script>
     <script>
 // Hospital formulary (\u9662\u5167\u54c1\u9805) lookup: parse an exported drug list (CSV or
 // XLSX), match a selection against it, and list in-house drugs that share the
@@ -2894,7 +2894,8 @@ body {
   });
 
   // doGet writes the list, settings and ?q= / ?k= into the page (OE_BOOT).
-  var BOOT = window.OE_BOOT || null;
+  // Still the "__OE_BOOT__" string when Code.gs didn't fill it in.
+  var BOOT = window.OE_BOOT && typeof window.OE_BOOT === "object" ? window.OE_BOOT : null;
   var PAGE_BUILD = window.OE_PAGE_BUILD || "";
   $(".footnote").append(el("span", "footnote__build", " \u7248\u672c " + PAGE_BUILD));
 
