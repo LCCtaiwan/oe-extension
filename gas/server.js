@@ -74,6 +74,20 @@ function doGet(e) {
     .addMetaTag("viewport", "width=device-width, initial-scale=1, viewport-fit=cover");
 }
 
+
+// Two-action iPhone Shortcut: POST a Form body with q = Shortcut Input,
+// then Show Result. Apps Script decodes form fields into e.parameter; do not
+// decode q again (literal +, &, %, Chinese text and newlines must survive).
+// The same token checks and text limits as GET apply. No AI runs by default.
+function doPost(e) {
+  var params = (e && e.parameter) || {};
+  return ContentService.createTextOutput(handleApi_({
+    api: params.api || "lookup",
+    q: params.q,
+    k: params.k,
+  })).setMimeType(ContentService.MimeType.TEXT);
+}
+
 function pageBoot_(params) {
   var q = clip_(params.q || params.text);
   if (!tokenOk_(params.k)) {

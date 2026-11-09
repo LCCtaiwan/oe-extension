@@ -478,4 +478,41 @@ for (const statement of [
   assert.equal(plain(context.rewriteText("pico", "a", "s3cret")).text, "Q?");
 }
 
+// POST defaults to lookup: the two-action Shortcut sends one decoded Form field.
+{
+  const { context, calls } = makeRuntime({ props: { GROQ_API_KEY: "gsk_test" } });
+  const post = context.doPost({ parameter: { q: "冠脂妥" } });
+  assert.match(post.text, /院內有此藥/);
+  assert.match(post.text, /OROSU/);
+  assert.equal(post.text, context.doGet({ parameter: { api: "lookup", q: "冠脂妥" } }).text);
+  assert.equal(calls.groq.length, 0, "default lookup must not spend AI quota");
+  assert.equal(context.doPost().text, "請先選取或複製文字。");
+  assert.equal(context.doPost({ parameter: {} }).text, "請先選取或複製文字。");
+  assert.equal(context.doPost({ parameter: { q: "   " } }).text, "請先選取或複製文字。");
+}
+
+// Form data is already decoded by GAS. Preserve punctuation; clip before lookup.
+{
+  const { context } = makeRuntime();
+  let received;
+  context.lookupText_ = (query) => { received = query; return "result"; };
+  const q = "中文藥名 + sodium & potassium = 50% / literal%20\n第二行";
+  assert.equal(context.doPost({ parameter: { q } }).text, "result");
+  assert.equal(received, q);
+  context.doPost({ parameter: { q: "x".repeat(5000) } });
+  assert.equal(received.length, 4000);
+}
+
+// POST supports explicit modes, but cannot bypass existing token validation.
+{
+  const { context, calls } = makeRuntime({ props: { ACCESS_TOKEN: "s3cret", GROQ_API_KEY: "gsk_test" } });
+  assert.match(context.doPost({ parameter: { q: "冠脂妥" } }).text, /^⚠️ 連結缺少/);
+  assert.match(context.doPost({ parameter: { q: "冠脂妥", k: "wrong" } }).text, /^⚠️ 連結缺少/);
+  assert.equal(calls.sheetReads, 0, "refused requests must not read the sheet");
+  assert.match(context.doPost({ parameter: { q: "冠脂妥", k: "s3cret" } }).text, /院內有此藥/);
+  assert.equal(context.doPost({ parameter: { api: "pico", q: "statin CKD", k: "s3cret" } }).text, "Q?");
+  assert.match(context.doPost({ parameter: { api: "unknown", q: "x", k: "s3cret" } }).text, /不認得的 api/);
+}
+
+
 console.log("gas.test.mjs passed");

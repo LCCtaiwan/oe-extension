@@ -2,7 +2,7 @@
 // Paste this whole file into Code.gs in the Apps Script editor of the formulary sheet.
 // Source: src/formulary.js + gas/server.js
 
-var OE_BUILD = "4bc1a99";
+var OE_BUILD = "1e63f63";
 
 // Hospital formulary (院內品項) lookup: parse an exported drug list (CSV or
 // XLSX), match a selection against it, and list in-house drugs that share the
@@ -974,6 +974,20 @@ function doGet(e) {
   return template.evaluate()
     .setTitle(APP.name)
     .addMetaTag("viewport", "width=device-width, initial-scale=1, viewport-fit=cover");
+}
+
+
+// Two-action iPhone Shortcut: POST a Form body with q = Shortcut Input,
+// then Show Result. Apps Script decodes form fields into e.parameter; do not
+// decode q again (literal +, &, %, Chinese text and newlines must survive).
+// The same token checks and text limits as GET apply. No AI runs by default.
+function doPost(e) {
+  var params = (e && e.parameter) || {};
+  return ContentService.createTextOutput(handleApi_({
+    api: params.api || "lookup",
+    q: params.q,
+    k: params.k,
+  })).setMimeType(ContentService.MimeType.TEXT);
 }
 
 function pageBoot_(params) {

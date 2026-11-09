@@ -148,6 +148,17 @@
         </section>
 
         <section class="settings__section">
+          <h3>推薦：原地顯示查藥結果（只需 2 個動作）</h3>
+          <p class="hint">捷徑開啟「在分享表單中顯示」，接收類型只選「文字」。</p>
+          <ol class="hint steps">
+            <li>加入「取得 URL 內容」，直接貼上這個完整網址：<code id="shortcut-post"></code></li>
+            <li>展開設定，方法改成「POST」，要求內文選「表單」，新增「文字」欄位：鍵填 <code>q</code>，值選藍色變數「捷徑輸入」。</li>
+            <li>加入「顯示結果」，來源選「取得 URL 內容」的輸出（通常顯示為「URL 的內容」）。</li>
+          </ol>
+          <p class="hint">不需要「URL 編碼」、額外的「URL」或「文字」動作。從 OpenEvidence 選取藥名 → 分享 →「院內查藥」，關閉結果後繼續閱讀。這個流程需要部署允許免登入存取；捷徑無法沿用 Safari 的 Google 登入狀態。</p>
+        </section>
+
+        <section class="settings__section">
           <h3>從分享選單開啟（2 個動作的捷徑）</h3>
           <ol class="hint steps">
             <li>「捷徑」App → ＋ → 命名「院內查藥」→ 點 ⓘ 開啟「在分享表單中顯示」。</li>

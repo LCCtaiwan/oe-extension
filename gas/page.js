@@ -936,6 +936,7 @@
     var withToken = function (query) {
       return config.appUrl + "?" + query + (token ? "&k=" + encodeURIComponent(token) : "");
     };
+    $("#shortcut-post").textContent = config.appUrl ? withToken("api=lookup") : "（部署後才會顯示網址）";
     $("#shortcut-lookup").textContent = config.appUrl ? withToken("api=lookup") + "&q=" : "（部署後才會顯示網址）";
     $("#shortcut-pico").textContent = config.appUrl ? withToken("api=pico") + "&q=" : "（部署後才會顯示網址）";
     $("#shortcut-nhi").textContent = config.nhiUrl ? config.nhiUrl + "?q=" : "（未設定健保查詢頁）";

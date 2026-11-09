@@ -851,7 +851,7 @@ body {
     <!-- Runs before the big scripts: if they fail to load or start, say so
          instead of leaving 讀取中… on screen. -->
     <script>
-      window.OE_PAGE_BUILD = "4bc1a99";
+      window.OE_PAGE_BUILD = "1e63f63";
       (function () {
         var status = document.getElementById("list-status");
         var errors = [];
@@ -972,6 +972,17 @@ body {
             <li>Safari 打開本頁 → 下方「分享」→「加入主畫面」。</li>
             <li>之後在任何 App 複製藥名 → 點主畫面的「院內查藥」→ 長按輸入框選「貼上」，會自動查詢。</li>
           </ol>
+        </section>
+
+        <section class="settings__section">
+          <h3>推薦：原地顯示查藥結果（只需 2 個動作）</h3>
+          <p class="hint">捷徑開啟「在分享表單中顯示」，接收類型只選「文字」。</p>
+          <ol class="hint steps">
+            <li>加入「取得 URL 內容」，直接貼上這個完整網址：<code id="shortcut-post"></code></li>
+            <li>展開設定，方法改成「POST」，要求內文選「表單」，新增「文字」欄位：鍵填 <code>q</code>，值選藍色變數「捷徑輸入」。</li>
+            <li>加入「顯示結果」，來源選「取得 URL 內容」的輸出（通常顯示為「URL 的內容」）。</li>
+          </ol>
+          <p class="hint">不需要「URL 編碼」、額外的「URL」或「文字」動作。從 OpenEvidence 選取藥名 → 分享 →「院內查藥」，關閉結果後繼續閱讀。這個流程需要部署允許免登入存取；捷徑無法沿用 Safari 的 Google 登入狀態。</p>
         </section>
 
         <section class="settings__section">
@@ -2850,6 +2861,7 @@ body {
     var withToken = function (query) {
       return config.appUrl + "?" + query + (token ? "&k=" + encodeURIComponent(token) : "");
     };
+    $("#shortcut-post").textContent = config.appUrl ? withToken("api=lookup") : "\uff08\u90e8\u7f72\u5f8c\u624d\u6703\u986f\u793a\u7db2\u5740\uff09";
     $("#shortcut-lookup").textContent = config.appUrl ? withToken("api=lookup") + "&q=" : "\uff08\u90e8\u7f72\u5f8c\u624d\u6703\u986f\u793a\u7db2\u5740\uff09";
     $("#shortcut-pico").textContent = config.appUrl ? withToken("api=pico") + "&q=" : "\uff08\u90e8\u7f72\u5f8c\u624d\u6703\u986f\u793a\u7db2\u5740\uff09";
     $("#shortcut-nhi").textContent = config.nhiUrl ? config.nhiUrl + "?q=" : "\uff08\u672a\u8a2d\u5b9a\u5065\u4fdd\u67e5\u8a62\u9801\uff09";
