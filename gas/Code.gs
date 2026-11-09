@@ -2,6 +2,8 @@
 // Paste this whole file into Code.gs in the Apps Script editor of the formulary sheet.
 // Source: src/formulary.js + gas/server.js
 
+var OE_BUILD = "c9a3755";
+
 // Hospital formulary (院內品項) lookup: parse an exported drug list (CSV or
 // XLSX), match a selection against it, and list in-house drugs that share the
 // same ingredient (identical 7-character ATC) or the same mechanism (same
@@ -975,9 +977,10 @@ function doGet(e) {
 function pageBoot_(params) {
   var q = clip_(params.q || params.text);
   if (!tokenOk_(params.k)) {
-    return { needsToken: true, q: q };
+    return { needsToken: true, q: q, build: typeof OE_BUILD === "undefined" ? "" : OE_BUILD };
   }
   var boot = getBootstrap("", params.k);
+  boot.build = typeof OE_BUILD === "undefined" ? "" : OE_BUILD;
   boot.q = q;
   boot.k = params.k ? String(params.k) : "";
   return boot;

@@ -978,6 +978,19 @@
 
   // doGet writes the list, settings and ?q= / ?k= into the page (OE_BOOT).
   var BOOT = window.OE_BOOT || null;
+  var PAGE_BUILD = window.OE_PAGE_BUILD || "";
+  $(".footnote").append(el("span", "footnote__build", " 版本 " + PAGE_BUILD));
+
+  // Code.gs and Index.html must come from the same version.
+  function versionProblem() {
+    if (!BOOT) {
+      return "伺服器程式（Code.gs）不是最新版：請重新貼上 Code.gs，再「管理部署作業 → 編輯 → 新版本」";
+    }
+    if (BOOT.build && PAGE_BUILD && BOOT.build !== PAGE_BUILD) {
+      return "Code.gs（" + BOOT.build + "）和 Index（" + PAGE_BUILD + "）版本不同：請兩個檔都重新貼上並部署新版本";
+    }
+    return "";
+  }
   token = readStore(TOKEN_KEY, "") || "";
   if (BOOT && BOOT.k) {
     token = String(BOOT.k);
@@ -998,7 +1011,14 @@
     queryInput.focus({ preventScroll: true });
   }
 
-  if (loaded) {
+  var problem = versionProblem();
+  if (problem) {
+    renderListStatus(problem, "error");
+    loaded = true;
+    if (index.items.length && incoming) {
+      runSearch(incoming, { allowRemote: false });
+    }
+  } else if (loaded) {
     if (incoming) {
       runSearch(incoming, { allowRemote: true });
     }

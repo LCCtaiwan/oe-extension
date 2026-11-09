@@ -77,9 +77,10 @@ function doGet(e) {
 function pageBoot_(params) {
   var q = clip_(params.q || params.text);
   if (!tokenOk_(params.k)) {
-    return { needsToken: true, q: q };
+    return { needsToken: true, q: q, build: typeof OE_BUILD === "undefined" ? "" : OE_BUILD };
   }
   var boot = getBootstrap("", params.k);
+  boot.build = typeof OE_BUILD === "undefined" ? "" : OE_BUILD;
   boot.q = q;
   boot.k = params.k ? String(params.k) : "";
   return boot;

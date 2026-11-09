@@ -848,6 +848,27 @@ body {
       </button>
     </header>
 
+    <!-- Runs before the big scripts: if they fail to load or start, say so
+         instead of leaving 讀取中… on screen. -->
+    <script>
+      window.OE_PAGE_BUILD = "c9a3755";
+      (function () {
+        var status = document.getElementById("list-status");
+        function show(text) {
+          status.textContent = text;
+          status.setAttribute("data-state", "error");
+        }
+        window.addEventListener("error", function (event) {
+          show("頁面錯誤：" + (event.message || "未知錯誤") + "（版本 " + window.OE_PAGE_BUILD + "，請截圖回報）");
+        });
+        setTimeout(function () {
+          if (status.textContent === "讀取中…") {
+            show("頁面程式沒有啟動（版本 " + window.OE_PAGE_BUILD + "）。請確認 Index 檔貼上的是完整的最新版");
+          }
+        }, 8000);
+      })();
+    </script>
+
     <main class="app-main">
       <form id="search-form" class="compose" role="search">
         <label for="query" class="visually-hidden">藥名、句子或臨床問題</label>
@@ -2864,6 +2885,19 @@ body {
 
   // doGet writes the list, settings and ?q= / ?k= into the page (OE_BOOT).
   var BOOT = window.OE_BOOT || null;
+  var PAGE_BUILD = window.OE_PAGE_BUILD || "";
+  $(".footnote").append(el("span", "footnote__build", " 版本 " + PAGE_BUILD));
+
+  // Code.gs and Index.html must come from the same version.
+  function versionProblem() {
+    if (!BOOT) {
+      return "伺服器程式（Code.gs）不是最新版：請重新貼上 Code.gs，再「管理部署作業 → 編輯 → 新版本」";
+    }
+    if (BOOT.build && PAGE_BUILD && BOOT.build !== PAGE_BUILD) {
+      return "Code.gs（" + BOOT.build + "）和 Index（" + PAGE_BUILD + "）版本不同：請兩個檔都重新貼上並部署新版本";
+    }
+    return "";
+  }
   token = readStore(TOKEN_KEY, "") || "";
   if (BOOT && BOOT.k) {
     token = String(BOOT.k);
@@ -2884,7 +2918,14 @@ body {
     queryInput.focus({ preventScroll: true });
   }
 
-  if (loaded) {
+  var problem = versionProblem();
+  if (problem) {
+    renderListStatus(problem, "error");
+    loaded = true;
+    if (index.items.length && incoming) {
+      runSearch(incoming, { allowRemote: false });
+    }
+  } else if (loaded) {
     if (incoming) {
       runSearch(incoming, { allowRemote: true });
     }

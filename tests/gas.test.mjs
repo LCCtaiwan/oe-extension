@@ -151,13 +151,19 @@ function bootOf(page) {
   assert.equal(boot.formulary.items.length, 3);
   assert.equal(boot.q, "冠脂妥");
   assert.equal(boot.nhiUrl, "https://lcctaiwan.github.io/chemodrugstable-query/nhi/");
+  // Code.gs and Index.html carry the same build id, so the page can spot a mix-up.
+  const pageBuild = output.html.match(/window\.OE_PAGE_BUILD = "([0-9a-f]{7})"/)[1];
+  assert.equal(boot.build, pageBuild);
+  assert.doesNotMatch(output.html, /__OE_BUILD__/);
 }
 
 // With ACCESS_TOKEN: no list without the right k=; with it, k is handed to the page.
 {
   const { context, output } = makeRuntime({ props: { ACCESS_TOKEN: "s3cret" } });
   context.doGet({ parameter: { q: "x" } });
-  assert.deepEqual(bootOf(output.html), { needsToken: true, q: "x" });
+  const locked = bootOf(output.html);
+  assert.deepEqual({ needsToken: locked.needsToken, q: locked.q, items: locked.formulary }, { needsToken: true, q: "x", items: undefined });
+  assert.match(locked.build, /^[0-9a-f]{7}$/);
   context.doGet({ parameter: { k: "s3cret" } });
   const boot = bootOf(output.html);
   assert.equal(boot.k, "s3cret");
@@ -314,8 +320,8 @@ function bootOf(page) {
   assert.equal(html.split("/*@boot*/null").length, 2, "exactly one boot placeholder");
   assert.doesNotMatch(html, /<script[^>]+src=/, "HtmlService pages can't load local scripts");
   assert.doesNotMatch(html, /<\?/, "no Apps Script scriptlets expected");
-  const scripts = [...html.matchAll(/<script>\n([\s\S]*?)\n<\/script>/g)].map((m) => m[1]);
-  assert.equal(scripts.length, 2);
+  const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
+  assert.equal(scripts.length, 4, "startup check + OE_BOOT + formulary.js + page.js");
   scripts.forEach((source) => new vm.Script(source));
   assert.match(html, /<base target="_top" \/>/);
   assert.match(html, /id="link-oe"/);
