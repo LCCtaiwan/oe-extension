@@ -19,7 +19,6 @@
 		"build": "node scripts/build-extension.mjs",
 		"test": "node scripts/run-tests.mjs",
 		"build:web": "node scripts/build-web.mjs",
-		"build:linebot": "node scripts/build-linebot.mjs",
 		"build:gas": "node scripts/build-gas.mjs"
 	}
 }

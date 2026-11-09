@@ -827,7 +827,7 @@
 
 // 院內查藥 · OE — Google Apps Script web app (phone version of the extension).
 //
-// Bound to the formulary Google Sheet, like the LINE bot. The page (Index.html)
+// Bound to the formulary Google Sheet. The page (Index.html)
 // downloads the list once and matches on the phone with OEFormulary
 // (src/formulary.js, which the build prepends to this file); this file only
 // does what a phone page can't: read the sheet, call NLM RxClass without CORS,
