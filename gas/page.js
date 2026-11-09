@@ -980,7 +980,7 @@
   });
 
   // doGet writes the list, settings and ?q= / ?k= into the page (OE_BOOT).
-  // Still the "__OE_BOOT__" string when Code.gs didn't fill it in.
+  // Missing/non-object data means bootstrap injection failed, not a proven old server.
   var BOOT = window.OE_BOOT && typeof window.OE_BOOT === "object" ? window.OE_BOOT : null;
   var PAGE_BUILD = window.OE_PAGE_BUILD || "";
   $(".footnote").append(el("span", "footnote__build", " 版本 " + PAGE_BUILD));
@@ -988,7 +988,7 @@
   // Code.gs and Index.html must come from the same version.
   function versionProblem() {
     if (!BOOT) {
-      return "伺服器程式（Code.gs）不是最新版：請重新貼上 Code.gs，再「管理部署作業 → 編輯 → 新版本」";
+      return "頁面啟動資料未載入：請確認 Code.gs 與 Index 來自同一次建置，並已部署新版本";
     }
     if (BOOT.build && PAGE_BUILD && BOOT.build !== PAGE_BUILD) {
       return "Code.gs（" + BOOT.build + "）和 Index（" + PAGE_BUILD + "）版本不同：請兩個檔都重新貼上並部署新版本";

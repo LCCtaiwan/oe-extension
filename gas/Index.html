@@ -851,7 +851,7 @@ body {
     <!-- Runs before the big scripts: if they fail to load or start, say so
          instead of leaving 讀取中… on screen. -->
     <script>
-      window.OE_PAGE_BUILD = "b83cc2e";
+      window.OE_PAGE_BUILD = "4bc1a99";
       (function () {
         var status = document.getElementById("list-status");
         var errors = [];
@@ -1013,7 +1013,7 @@ body {
       </form>
     </dialog>
 
-    <script>window.OE_BOOT = "__OE_BOOT__";</script>
+    <script>window.OE_BOOT = <?!= bootJson ?>;</script>
     <script>
 // Hospital formulary (\u9662\u5167\u54c1\u9805) lookup: parse an exported drug list (CSV or
 // XLSX), match a selection against it, and list in-house drugs that share the
@@ -2894,7 +2894,7 @@ body {
   });
 
   // doGet writes the list, settings and ?q= / ?k= into the page (OE_BOOT).
-  // Still the "__OE_BOOT__" string when Code.gs didn't fill it in.
+  // Missing/non-object data means bootstrap injection failed, not a proven old server.
   var BOOT = window.OE_BOOT && typeof window.OE_BOOT === "object" ? window.OE_BOOT : null;
   var PAGE_BUILD = window.OE_PAGE_BUILD || "";
   $(".footnote").append(el("span", "footnote__build", " \u7248\u672c " + PAGE_BUILD));
@@ -2902,7 +2902,7 @@ body {
   // Code.gs and Index.html must come from the same version.
   function versionProblem() {
     if (!BOOT) {
-      return "\u4f3a\u670d\u5668\u7a0b\u5f0f\uff08Code.gs\uff09\u4e0d\u662f\u6700\u65b0\u7248\uff1a\u8acb\u91cd\u65b0\u8cbc\u4e0a Code.gs\uff0c\u518d\u300c\u7ba1\u7406\u90e8\u7f72\u4f5c\u696d \u2192 \u7de8\u8f2f \u2192 \u65b0\u7248\u672c\u300d";
+      return "\u9801\u9762\u555f\u52d5\u8cc7\u6599\u672a\u8f09\u5165\uff1a\u8acb\u78ba\u8a8d Code.gs \u8207 Index \u4f86\u81ea\u540c\u4e00\u6b21\u5efa\u7f6e\uff0c\u4e26\u5df2\u90e8\u7f72\u65b0\u7248\u672c";
     }
     if (BOOT.build && PAGE_BUILD && BOOT.build !== PAGE_BUILD) {
       return "Code.gs\uff08" + BOOT.build + "\uff09\u548c Index\uff08" + PAGE_BUILD + "\uff09\u7248\u672c\u4e0d\u540c\uff1a\u8acb\u5169\u500b\u6a94\u90fd\u91cd\u65b0\u8cbc\u4e0a\u4e26\u90e8\u7f72\u65b0\u7248\u672c";

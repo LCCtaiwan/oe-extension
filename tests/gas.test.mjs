@@ -26,7 +26,7 @@ const PROMPTS = [
 ];
 const RX = { lipitor: [["atorvastatin", "C10AA", "HMG CoA reductase inhibitors"]] };
 
-function makeRuntime({ props: initialProps = {}, groq = () => ({ code: 200, content: '{"question":"Q?"}' }), prompts = PROMPTS } = {}) {
+function makeRuntime({ props: initialProps = {}, groq = () => ({ code: 200, content: '{"question":"Q?"}' }), prompts = PROMPTS, pageHtml = html } = {}) {
   const props = { ...initialProps };
   const cacheStore = {};
   const calls = { rxclass: [], groq: [], sheetReads: 0 };
@@ -86,15 +86,16 @@ function makeRuntime({ props: initialProps = {}, groq = () => ({ code: 200, cont
       createTextOutput: (text) => ({ text, setMimeType() { return this; } }),
     },
     HtmlService: {
-      createHtmlOutputFromFile: (name) => {
+      createTemplateFromFile: (name) => {
         output.calls.push(["file", name]);
-        // Like Apps Script: getContent() hands back the file with JS comments
-        // stripped, so nothing may rely on a comment marker.
-        return { getContent: () => html.replace(/\/\*[\s\S]*?\*\//g, "") };
-      },
-      createHtmlOutput: (content) => {
-        output.html = content;
-        return chain;
+        return {
+          evaluate() {
+            assert.equal(typeof this.bootJson, "string", "template must receive escaped JSON");
+            output.html = pageHtml.replace(/<\?!=\s*bootJson\s*\?>/g, () => this.bootJson);
+            assert.doesNotMatch(output.html, /<\?/, "all scriptlets must be evaluated");
+            return chain;
+          },
+        };
       },
     },
     UrlFetchApp: {
@@ -157,6 +158,22 @@ function bootOf(page) {
   const pageBuild = output.html.match(/window\.OE_PAGE_BUILD = "([0-9a-f]{7})"/)[1];
   assert.equal(boot.build, pageBuild);
   assert.doesNotMatch(output.html, /__OE_BUILD__/);
+}
+
+// Template injection survives statement formatting; it is not an exact-text replacement.
+for (const statement of [
+  "window.OE_BOOT=<?!= bootJson ?>;",
+  "window.OE_BOOT =\n<?!= bootJson ?>;",
+]) {
+  const { context, output } = makeRuntime({
+    pageHtml: html.replace("window.OE_BOOT = <?!= bootJson ?>;", () => statement),
+  });
+  context.doGet({ parameter: { q: "statin" } });
+  const bootScript = [...output.html.matchAll(/<script>([\s\S]*?)<\/script>/g)][1][1];
+  const pageContext = { window: {} };
+  vm.runInNewContext(bootScript, pageContext);
+  assert.equal(pageContext.window.OE_BOOT.q, "statin");
+  assert.equal(pageContext.window.OE_BOOT.formulary.items.length, 3);
 }
 
 // With ACCESS_TOKEN: no list without the right k=; with it, k is handed to the page.
@@ -253,6 +270,53 @@ function bootOf(page) {
   assert.deepEqual(plain(context.lookupRxClass("zzzunknowndrug")), []);
 }
 
+// Cached misses must not hide an outage for every remaining RxClass term.
+{
+  const { context } = makeRuntime();
+  context.lookupRxClass("sodium"); // cache an unknown-name result
+  context.UrlFetchApp.fetchAll = (requests) => requests.map(() => ({
+    getResponseCode: () => 503, getContentText: () => "unavailable",
+  }));
+  assert.throws(() => context.lookupRxClass("sodium bicarbonate"), /暫時連不上/);
+}
+
+// Malformed 200 responses are retried rather than cached as a six-hour miss.
+{
+  const { context, plain } = makeRuntime();
+  const fetchAll = context.UrlFetchApp.fetchAll;
+  context.UrlFetchApp.fetchAll = (requests) => requests.map(() => ({
+    getResponseCode: () => 200, getContentText: () => "not JSON",
+  }));
+  assert.throws(() => context.lookupRxClass("Lipitor"), /暫時連不上/);
+  context.UrlFetchApp.fetchAll = fetchAll;
+  assert.equal(plain(context.lookupRxClass("Lipitor"))[0].ingredient, "atorvastatin");
+}
+
+// Chinese-heavy lists must fit CacheService's byte limit, not just JS string length.
+{
+  const { context, calls } = makeRuntime();
+  const cache = context.CacheService.getScriptCache();
+  const putAll = cache.putAll;
+  cache.putAll = (values) => {
+    for (const value of Object.values(values)) {
+      assert.ok(Buffer.byteLength(value, "utf8") <= 100 * 1024, "cache value exceeds 100 KB");
+    }
+    putAll(values);
+  };
+  context.CacheService.getScriptCache = () => cache;
+  const originalLength = SHEET.length;
+  for (let i = 0; i < 600; i += 1) {
+    SHEET.push(["X" + i, "Rosuvastatin " + "中文藥品".repeat(25), "", "", "", "", "C10AA07", "", "O"]);
+  }
+  try {
+    context.getBootstrap("");
+    context.getBootstrap("");
+    assert.equal(calls.sheetReads, 1, "second request must use the chunked cache");
+  } finally {
+    SHEET.splice(originalLength);
+  }
+}
+
 // AI is refused without a key.
 {
   const { context } = makeRuntime();
@@ -319,13 +383,13 @@ function bootOf(page) {
 // Index.html: everything inlined, both scripts compile, no leftover markers.
 {
   assert.doesNotMatch(html, /<!-- @(style|script) -->/);
-  assert.equal(html.split('window.OE_BOOT = "__OE_BOOT__";').length, 2, "exactly one boot placeholder");
+  assert.equal(html.split("<?!= bootJson ?>").length, 2, "exactly one boot template expression");
   assert.doesNotMatch(html, /<script[^>]+src=/, "HtmlService pages can't load local scripts");
-  assert.doesNotMatch(html, /<\?/, "no Apps Script scriptlets expected");
+  assert.doesNotMatch(html.replace("<?!= bootJson ?>", "null"), /<\?/, "only the boot scriptlet is allowed");
   const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
   assert.equal(scripts.length, 3, "startup check + OE_BOOT + formulary.js/page.js");
   assert.doesNotMatch(scripts[2], /[^\x00-\x7f]/, "inlined code is pure ASCII");
-  scripts.forEach((source) => new vm.Script(source));
+  scripts.forEach((source) => new vm.Script(source.replace("<?!= bootJson ?>", "null")));
   assert.match(html, /<base target="_top" \/>/);
   assert.match(html, /id="link-oe"/);
 }
@@ -359,7 +423,7 @@ function bootOf(page) {
     return out;
   };
   for (const [, source] of html.matchAll(/<script>([\s\S]*?)<\/script>/g)) {
-    new vm.Script(stripLineComments(source));
+    new vm.Script(stripLineComments(source.replace("<?!= bootJson ?>", "null")));
   }
 }
 

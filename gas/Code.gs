@@ -2,7 +2,7 @@
 // Paste this whole file into Code.gs in the Apps Script editor of the formulary sheet.
 // Source: src/formulary.js + gas/server.js
 
-var OE_BUILD = "b83cc2e";
+var OE_BUILD = "4bc1a99";
 
 // Hospital formulary (院內品項) lookup: parse an exported drug list (CSV or
 // XLSX), match a selection against it, and list in-house drugs that share the
@@ -966,14 +966,12 @@ function doGet(e) {
   } catch (error) {
     boot = { error: String(error && error.message ? error.message : error), q: clip_(params.q) };
   }
-  // Matched as a whole statement, not by a comment marker: getContent()
-  // returns the file with JS comments already stripped by Apps Script.
-  var html = HtmlService.createHtmlOutputFromFile("Index")
-    .getContent()
-    .replace(/window\.OE_BOOT = "__OE_BOOT__";/, function () {
-      return "window.OE_BOOT = " + safeJson_(boot) + ";";
-    });
-  return HtmlService.createHtmlOutput(html)
+  // Evaluate the raw template once. Do not replace statements in HTML that
+  // HtmlService has already parsed: formatting changes can leave a placeholder.
+  // Force-print only JSON escaped by safeJson_, never raw sheet/user text.
+  var template = HtmlService.createTemplateFromFile("Index");
+  template.bootJson = safeJson_(boot);
+  return template.evaluate()
     .setTitle(APP.name)
     .addMetaTag("viewport", "width=device-width, initial-scale=1, viewport-fit=cover");
 }
@@ -1216,7 +1214,8 @@ function rxclassMatches_(text) {
         try {
           matches = OEFormulary.parseRxClassResponse(JSON.parse(response.getContentText()));
         } catch (_error) {
-          matches = [];
+          failures += 1;
+          return; // An invalid response is not a cached "no match".
         }
       } else if (code !== 404) {
         failures += 1; // 404 = name unknown to RxNav, a real answer
@@ -1225,7 +1224,7 @@ function rxclassMatches_(text) {
       fetched["rx:" + missing[i].toLowerCase()] = matches;
       toCache["rx:" + missing[i].toLowerCase()] = JSON.stringify(matches);
     });
-    if (failures === terms.length) {
+    if (failures === missing.length) {
       throw new Error("RxClass 暫時連不上");
     }
     if (Object.keys(toCache).length > 0) {
@@ -1328,7 +1327,9 @@ function readFormulary_() {
 // Reading a big sheet takes seconds, so the parsed list is kept in the script
 // cache for a few minutes (in chunks: one cache value holds at most 100 KB).
 // Editing the sheet clears it through onEdit below.
-var FORMULARY_CACHE = { key: "formulary:v1", seconds: 10 * 60, chunk: 90000 };
+// At most three UTF-8 bytes per UTF-16 code unit, including Chinese text.
+// 30,000 code units stay below the 100 KB per-value limit.
+var FORMULARY_CACHE = { key: "formulary:v1", seconds: 10 * 60, chunk: 30000 };
 
 function cachedFormulary_(refresh) {
   var cache = CacheService.getScriptCache();
