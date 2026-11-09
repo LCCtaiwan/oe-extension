@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <base target="_top" />
+    <meta charset="utf-8" />
+    <meta name="color-scheme" content="light dark" />
+    <!-- @style -->
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="app-header__title">
+        <h1>院內查藥 <span class="app-header__sub">· OE</span></h1>
+        <p id="list-status" class="list-status" role="status">讀取中…</p>
+      </div>
+      <button type="button" id="open-menu" class="icon-button" aria-label="紀錄與設定" title="紀錄與設定">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+          <path d="M3 3v5h5" />
+          <path d="M12 7v5l4 2" />
+        </svg>
+      </button>
+    </header>
+
+    <main class="app-main">
+      <form id="search-form" class="compose" role="search">
+        <label for="query" class="visually-hidden">藥名、句子或臨床問題</label>
+        <textarea
+          id="query"
+          rows="2"
+          enterkeyhint="search"
+          autocomplete="off"
+          autocapitalize="off"
+          spellcheck="false"
+          placeholder="貼上或輸入：藥名、句子或臨床問題"
+        ></textarea>
+        <div class="compose__actions">
+          <button type="button" id="paste" class="button">貼上</button>
+          <button type="button" id="clear" class="button">清除</button>
+          <button type="submit" class="button button--primary">查院內</button>
+        </div>
+      </form>
+
+      <section id="ai-actions" class="ai-actions" aria-label="AI 改寫" hidden>
+        <span class="ai-actions__label">AI 改寫</span>
+        <div id="ai-buttons" class="ai-actions__buttons"></div>
+      </section>
+
+      <section id="ai-panel" class="card ai-panel" hidden>
+        <header class="ai-panel__header">
+          <h2 id="ai-title">PICO</h2>
+          <button type="button" id="ai-close" class="icon-button icon-button--small" aria-label="關閉">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M18 6 6 18" />
+              <path d="m6 6 12 12" />
+            </svg>
+          </button>
+        </header>
+        <p id="ai-status" class="loading" role="status" hidden></p>
+        <label for="ai-output" class="visually-hidden">AI 改寫結果（可編輯）</label>
+        <textarea id="ai-output" rows="5" spellcheck="false"></textarea>
+        <div class="button-row">
+          <a id="ai-ask" class="button button--primary button--link" target="_blank" rel="noopener">問 OpenEvidence</a>
+          <button type="button" id="ai-copy" class="button">複製</button>
+          <button type="button" id="ai-use" class="button">放回輸入框</button>
+        </div>
+      </section>
+
+      <section id="results" class="results" aria-live="polite"></section>
+
+      <p class="footnote">⚠️ 請勿輸入病人資料。<span id="ai-note" hidden>AI 改寫會把文字送到 Groq。</span></p>
+    </main>
+
+    <nav id="engines" class="engines" aria-label="外部查詢" data-empty="true">
+      <a id="link-oe" class="engine engine--primary" target="_blank" rel="noopener">OpenEvidence</a>
+      <a id="link-utd" class="engine" target="_blank" rel="noopener">UpToDate</a>
+      <a id="link-pubmed" class="engine" target="_blank" rel="noopener">PubMed</a>
+      <a id="link-google" class="engine" target="_blank" rel="noopener">Google</a>
+    </nav>
+
+    <dialog id="menu" class="settings">
+      <form method="dialog" class="settings__inner">
+        <header class="settings__header">
+          <h2>紀錄與設定</h2>
+          <button value="close" class="icon-button" aria-label="關閉">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M18 6 6 18" />
+              <path d="m6 6 12 12" />
+            </svg>
+          </button>
+        </header>
+
+        <section class="settings__section">
+          <h3>送到 OpenEvidence 的紀錄</h3>
+          <p class="hint">只存在這支手機的瀏覽器裡。點一筆可以再查一次。</p>
+          <ul id="history-list" class="history-list"></ul>
+          <div class="button-row">
+            <label class="toggle-row" for="history-enabled">
+              <input id="history-enabled" type="checkbox" />
+              <span>記錄送出的問題</span>
+            </label>
+            <button type="button" id="history-clear" class="button button--danger">清除紀錄</button>
+          </div>
+        </section>
+
+        <section class="settings__section">
+          <h3>院內清單</h3>
+          <p id="sync-status" class="hint" role="status"></p>
+          <div class="button-row">
+            <button type="button" id="sync-now" class="button">重新讀取清單</button>
+          </div>
+        </section>
+
+        <section class="settings__section">
+          <h3>不用切換 App：iPhone 捷徑</h3>
+          <p class="hint">
+            在 OpenEvidence、PDF 或任何 App 選取文字 → 分享 →「院內查藥」，結果直接跳在原本的畫面上，同一個選單一鍵問
+            OpenEvidence。也可以設成「背面輕點」：複製文字後敲手機背面兩下。
+          </p>
+          <details>
+            <summary>建立捷徑（約 3 分鐘，做一次）</summary>
+            <ol class="hint steps">
+              <li>「捷徑」App → ＋ → 命名「院內查藥」→ 點 ⓘ 開啟「在分享表單中顯示」，類型勾「文字」；「如果沒有輸入」選「取得剪貼簿」。</li>
+              <li>加入「URL 編碼」，輸入選「捷徑輸入」。</li>
+              <li>
+                加入「取得 URL 內容」，網址貼上這串，最後接上變數「URL 編碼的文字」：
+                <code id="shortcut-lookup"></code>
+              </li>
+              <li>加入「從選單中選擇」，提示選變數「URL 的內容」，選項：「問 OpenEvidence」「PICO 後問 OE」「完成」。</li>
+              <li>
+                「問 OpenEvidence」底下加「打開 URL」：
+                <code>https://www.openevidence.com/ask?configName=prod&amp;attachments=%5B%5D&amp;query=</code> 接上「URL 編碼的文字」。
+              </li>
+              <li>
+                「PICO 後問 OE」（需設定 Groq）：先「取得 URL 內容」
+                <code id="shortcut-pico"></code> 接上「URL 編碼的文字」，再「URL 編碼」它的結果，最後「打開 URL」同上一步的
+                OpenEvidence 網址接上這個新結果。
+              </li>
+              <li>做好後長按捷徑 → 分享 →「拷貝 iCloud 連結」，傳給同事就能直接加入。</li>
+            </ol>
+          </details>
+          <details>
+            <summary>背面輕點（複製後敲兩下）</summary>
+            <p class="hint">設定 → 輔助使用 → 觸控 → 背面輕點 → 點兩下 → 選「院內查藥」。之後複製文字、敲手機背面兩下就會查詢剪貼簿的內容。</p>
+          </details>
+          <details>
+            <summary>開完整頁面 / Android</summary>
+            <p class="hint">完整頁面（可 PICO 改寫、看同機轉全部品項）網址：</p>
+            <code id="page-url"></code>
+            <p class="hint">
+              Android 可用 HTTP Shortcuts 之類支援「分享文字」的 App 呼叫上面「取得 URL 內容」那串網址，並以對話框顯示回應。
+            </p>
+          </details>
+        </section>
+      </form>
+    </dialog>
+
+    <!-- @script -->
+  </body>
+</html>

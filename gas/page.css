@@ -1,0 +1,235 @@
+/* GAS page additions on top of web/style.css (inlined first by the build). */
+
+body {
+  /* Room for the fixed engine bar. */
+  padding-bottom: calc(76px + env(safe-area-inset-bottom));
+}
+
+.app-header__sub {
+  color: var(--primary-strong);
+  font-weight: 700;
+}
+
+.icon-button--small {
+  width: 36px;
+  height: 36px;
+  flex-basis: 36px;
+}
+
+/* ------------------------------------------------------------- compose */
+
+.compose {
+  display: grid;
+  gap: 8px;
+}
+
+.compose textarea,
+.ai-panel textarea {
+  width: 100%;
+  min-height: 52px;
+  max-height: 40vh;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  padding: 12px;
+  background: var(--surface);
+  color: var(--fg);
+  font: inherit;
+  /* 16px keeps iOS Safari from zooming in on focus. */
+  font-size: 16px;
+  resize: vertical;
+}
+
+.ai-panel textarea {
+  min-height: 120px;
+}
+
+.compose textarea:focus-visible,
+.ai-panel textarea:focus-visible,
+.engine:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.compose__actions {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  gap: 8px;
+}
+
+.button--link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+/* ---------------------------------------------------------------- AI */
+
+.ai-actions {
+  display: grid;
+  gap: 6px;
+}
+
+.ai-actions__label {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.ai-actions__buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ai-chip {
+  min-height: 38px;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  padding: 0 14px;
+  background: var(--surface);
+  color: var(--accent);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.ai-chip:disabled {
+  opacity: 0.5;
+}
+
+.ai-panel {
+  display: grid;
+  gap: 10px;
+}
+
+.ai-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ai-panel__header h2 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.ai-panel [data-state="error"] {
+  color: var(--danger);
+}
+
+.note--ai {
+  border-left: 3px solid var(--primary);
+  padding-left: 10px;
+  color: var(--fg);
+}
+
+.footnote {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* ------------------------------------------------------- engine bar */
+
+.engines {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 6;
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr 1fr;
+  gap: 6px;
+  padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+  background: color-mix(in srgb, var(--page) 94%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-top: 1px solid var(--border);
+}
+
+.engine {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  padding: 0 6px;
+  background: var(--surface);
+  color: var(--fg);
+  font-size: 14px;
+  font-weight: 650;
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.engine--primary {
+  border-color: var(--primary-strong);
+  background: var(--primary);
+  color: var(--primary-fg);
+}
+
+.engines[data-empty="true"] .engine {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+@media (min-width: 760px) {
+  .engines {
+    left: 50%;
+    right: auto;
+    width: 720px;
+    transform: translateX(-50%);
+    border: 1px solid var(--border);
+    border-bottom: 0;
+    border-radius: 12px 12px 0 0;
+  }
+}
+
+/* ------------------------------------------------------------ history */
+
+.history-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.history-item {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: var(--surface-muted);
+  color: var(--fg);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.history-item__text {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.history-item__meta {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.settings .toggle-row {
+  flex: 1 1 auto;
+  align-items: center;
+  font-size: 14px;
+}
