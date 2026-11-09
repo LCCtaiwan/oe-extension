@@ -2,7 +2,7 @@
 // Paste this whole file into Code.gs in the Apps Script editor of the formulary sheet.
 // Source: src/formulary.js + gas/server.js
 
-var OE_BUILD = "0376196";
+var OE_BUILD = "0da234e";
 
 // Hospital formulary (院內品項) lookup: parse an exported drug list (CSV or
 // XLSX), match a selection against it, and list in-house drugs that share the
@@ -1057,8 +1057,40 @@ function itemLine_(item) {
 }
 
 // The same lookup as the page (list -> RxClass), condensed for a pop-up.
+// A selected paragraph (an OpenEvidence answer): list every in-house drug it
+// names, like the page's highlight mode, but condensed for a pop-up.
+function passageText_(index, text) {
+  var seen = {};
+  var terms = [];
+  OEFormulary.findMentions(index, text).forEach(function (mention) {
+    var key = mention.term.toLowerCase();
+    if (!seen[key]) {
+      seen[key] = true;
+      terms.push(mention.term);
+    }
+  });
+  if (!terms.length) {
+    return "❌ 這段文字裡沒有院內品項的藥名\n（院內沒有的藥，可以只選那個藥名再查一次，會找同機轉品項）";
+  }
+  var lines = ["📋 文中的院內藥品（" + terms.length + "）"];
+  terms.forEach(function (term) {
+    var hit = OEFormulary.lookup(index, term);
+    lines.push("", "▸ " + term);
+    hit.direct.slice(0, 2).forEach(function (item) {
+      lines.push(itemLine_(item));
+    });
+    if (hit.direct.length > 2) {
+      lines.push("　…還有 " + (hit.direct.length - 2) + " 項");
+    }
+  });
+  return lines.join("\n");
+}
+
 function lookupText_(query) {
   var index = OEFormulary.createIndex(cachedFormulary_().items);
+  if (query.length >= 40 || /\n/.test(query)) {
+    return passageText_(index, query);
+  }
   var result = OEFormulary.lookup(index, query);
   var lines = [];
   var source = "";

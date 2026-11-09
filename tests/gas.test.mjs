@@ -374,6 +374,22 @@ function bootOf(page) {
   assert.match(viaRx, /【院內同成分】\n・Atorvastatin \(Tulip\)/);
 
   assert.equal(context.doGet({ parameter: { api: "lookup", q: " " } }).text, "請先選取或複製文字。");
+
+  // A selected paragraph lists every in-house drug it names.
+  const passage = context.doGet({
+    parameter: {
+      api: "lookup",
+      q: "High-intensity statins such as rosuvastatin or atorvastatin are recommended; dapagliflozin slows CKD progression.",
+    },
+  }).text;
+  assert.match(passage, /^📋 文中的院內藥品（3）/);
+  assert.match(passage, /▸ rosuvastatin\n・Rosuvastatin \(Crestor\)[^\n]*\n　OROSU/);
+  assert.match(passage, /▸ atorvastatin\n・Atorvastatin/);
+  assert.match(passage, /▸ dapagliflozin\n・Dapagliflozin/);
+  assert.match(
+    context.doGet({ parameter: { api: "lookup", q: "Finerenone may be added for residual albuminuria in these patients." } }).text,
+    /^❌ 這段文字裡沒有院內品項的藥名/,
+  );
   assert.match(context.doGet({ parameter: { api: "pico", q: "x" } }).text, /^⚠️ 尚未設定 GROQ_API_KEY/);
 }
 
