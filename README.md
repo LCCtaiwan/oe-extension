@@ -173,6 +173,9 @@ own `/exec` URL when making a shortcut.
 
 `gas/` is the extension rebuilt for phones as a Google Apps Script web app,
 bound to the formulary Google Sheet so the list never has to be published.
+`/exec?api=csv&k=<token>` serves the formulary tab as CSV, so the extension's
+Google Sheet link can point at the deployment while the sheet stays private.
+Rows whose `狀態` column says `停用` are left out everywhere.
 It has the in-house lookup (院內有此藥 / 同成分 / 同機轉, RxClass fallback),
 OpenEvidence / UpToDate / PubMed / Google buttons, `PICO` and custom prompts
 (Groq key kept in script properties, custom prompts read from a `自訂提示` tab),

@@ -23,6 +23,9 @@
 		nhiPrice: ["健保價", "健保價格"],
 		selfPrice: ["自費價", "自費價格"],
 	};
+	// Optional 狀態 column; rows marked 停用 are left out of the list.
+	const STATUS_ALIASES = ["狀態", "status"];
+	const INACTIVE_STATUS = /停用|inactive|disabled/i;
 	// Any header containing one of these is a storage location (P1儲位, 藥庫…).
 	const LOCATION_HEADER_PATTERN = /儲位|藥庫|location/i;
 
@@ -380,6 +383,12 @@
 					columns[field] = index;
 				}
 			}
+			const statusIndex = headers.findIndex((header) =>
+				STATUS_ALIASES.includes(header),
+			);
+			if (statusIndex !== -1) {
+				columns.status = statusIndex;
+			}
 			headers.forEach((header, index) => {
 				if (header && LOCATION_HEADER_PATTERN.test(header)) {
 					columns.locations.push({
@@ -409,7 +418,7 @@
 
 		for (const row of rows.slice(headerRow + 1)) {
 			const name = cell(row, "name");
-			if (!name) {
+			if (!name || INACTIVE_STATUS.test(cell(row, "status"))) {
 				continue;
 			}
 			const item = { code: cell(row, "code"), name };

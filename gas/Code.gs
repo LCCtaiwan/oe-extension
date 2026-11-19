@@ -2,7 +2,7 @@
 // Paste this whole file into Code.gs in the Apps Script editor of the formulary sheet.
 // Source: src/formulary.js + gas/server.js
 
-var OE_BUILD = "1142032";
+var OE_BUILD = "4e0e1c7";
 
 // Hospital formulary (院內品項) lookup: parse an exported drug list (CSV or
 // XLSX), match a selection against it, and list in-house drugs that share the
@@ -29,6 +29,9 @@ var OE_BUILD = "1142032";
 		nhiPrice: ["健保價", "健保價格"],
 		selfPrice: ["自費價", "自費價格"],
 	};
+	// Optional 狀態 column; rows marked 停用 are left out of the list.
+	const STATUS_ALIASES = ["狀態", "status"];
+	const INACTIVE_STATUS = /停用|inactive|disabled/i;
 	// Any header containing one of these is a storage location (P1儲位, 藥庫…).
 	const LOCATION_HEADER_PATTERN = /儲位|藥庫|location/i;
 
@@ -386,6 +389,12 @@ var OE_BUILD = "1142032";
 					columns[field] = index;
 				}
 			}
+			const statusIndex = headers.findIndex((header) =>
+				STATUS_ALIASES.includes(header),
+			);
+			if (statusIndex !== -1) {
+				columns.status = statusIndex;
+			}
 			headers.forEach((header, index) => {
 				if (header && LOCATION_HEADER_PATTERN.test(header)) {
 					columns.locations.push({
@@ -415,7 +424,7 @@ var OE_BUILD = "1142032";
 
 		for (const row of rows.slice(headerRow + 1)) {
 			const name = cell(row, "name");
-			if (!name) {
+			if (!name || INACTIVE_STATUS.test(cell(row, "status"))) {
 				continue;
 			}
 			const item = { code: cell(row, "code"), name };
@@ -918,6 +927,9 @@ var OE_BUILD = "1142032";
 //   ACCESS_TOKEN     optional — required as ?k= on every call once set (needed
 //                    when the deployment is open to 所有人 for the Shortcut)
 //
+// ?api=csv&k=… returns the formulary tab as CSV, so the Chrome extension can
+// sync from this deployment (its 院內清單 link) while the sheet stays private.
+//
 // Custom prompt buttons come from a tab named 自訂提示 with header row
 // 名稱 | 提示 (up to 6 rows), the phone equivalent of the extension's options.
 
@@ -954,6 +966,9 @@ var ATC_GUESS_INSTRUCTION =
 // Shortcut (shown as a pop-up over the current app); anything else is the page.
 function doGet(e) {
   var params = (e && e.parameter) || {};
+  if (params.api === "csv") {
+    return ContentService.createTextOutput(formularyCsv_(params.k)).setMimeType(ContentService.MimeType.CSV);
+  }
   if (params.api) {
     return ContentService.createTextOutput(handleApi_(params)).setMimeType(ContentService.MimeType.TEXT);
   }
@@ -1331,14 +1346,38 @@ function spreadsheet_() {
   return spreadsheet;
 }
 
-function readFormulary_() {
+function formularyRows_() {
   var spreadsheet = spreadsheet_();
   var sheetName = PropertiesService.getScriptProperties().getProperty("SHEET_NAME");
   var sheet = sheetName ? spreadsheet.getSheetByName(sheetName) : spreadsheet.getSheets()[0];
   if (!sheet) {
     throw new Error("找不到工作表 " + sheetName);
   }
-  return OEFormulary.rowsToFormulary(sheet.getDataRange().getDisplayValues());
+  return sheet.getDataRange().getDisplayValues();
+}
+
+function readFormulary_() {
+  return OEFormulary.rowsToFormulary(formularyRows_());
+}
+
+// The formulary tab as CSV for the extension. Errors come back as one line
+// starting with ⚠️ so the extension can show the reason instead of a parse error.
+function formularyCsv_(token) {
+  try {
+    checkToken_(token);
+    return formularyRows_()
+      .map(function (row) {
+        return row.map(csvCell_).join(",");
+      })
+      .join("\r\n");
+  } catch (error) {
+    return "⚠️ " + (error && error.message ? error.message : error);
+  }
+}
+
+function csvCell_(value) {
+  var text = String(value == null ? "" : value);
+  return /[",\r\n]|^\s|\s$/.test(text) ? '"' + text.replace(/"/g, '""') + '"' : text;
 }
 
 // Reading a big sheet takes seconds, so the parsed list is kept in the script

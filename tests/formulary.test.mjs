@@ -63,6 +63,17 @@ assert.equal(parsedCsv.withAtc, 1);
 
 assert.throws(() => F.rowsToFormulary([["foo", "bar"]]), /藥名/);
 
+// 狀態 = 停用 rows are skipped; blank or 啟用 rows stay. The status column is
+// optional and never reported as missing.
+const withStatus = F.rowsToFormulary([
+  ["批價碼", "藥名", "狀態"],
+  ["A002", "Sterile Water 20 ml/amp", "啟用"],
+  ["A003", "Saline 0.9% 20ml/amp", "停用"],
+  ["A004", "Dextrose 5% 500ml/bot", ""],
+]);
+assert.deepEqual(plain(withStatus.items.map((item) => item.code)), ["A002", "A004"]);
+assert.equal(withStatus.missingColumns.includes("status"), false);
+
 // --- ATC helpers --------------------------------------------------------
 
 assert.equal(F.normalizeAtc(" c10aa07 "), "C10AA07");

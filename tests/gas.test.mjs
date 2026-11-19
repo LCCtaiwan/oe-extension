@@ -82,7 +82,7 @@ function makeRuntime({ props: initialProps = {}, groq = () => ({ code: 200, cont
     Session: { getScriptTimeZone: () => "Asia/Taipei" },
     ScriptApp: { getService: () => ({ getUrl: () => "https://script.google.com/macros/s/ID/exec" }) },
     ContentService: {
-      MimeType: { TEXT: "text/plain" },
+      MimeType: { TEXT: "text/plain", CSV: "text/csv" },
       createTextOutput: (text) => ({ text, setMimeType() { return this; } }),
     },
     HtmlService: {
@@ -468,6 +468,30 @@ for (const statement of [
 {
   const { context } = makeRuntime({ props: { GROQ_API_KEY: "gsk_test" } });
   assert.equal(context.doGet({ parameter: { api: "pico", q: "statin CKD" } }).text, "Q?");
+}
+
+// ?api=csv serves the formulary tab for the extension; it parses back into
+// the same list, quotes cells that need it, and honours ACCESS_TOKEN.
+{
+  const { context, plain } = makeRuntime();
+  const csv = context.doGet({ parameter: { api: "csv" } }).text;
+  const parsed = plain(context.OEFormulary.parseFormularyText(csv));
+  assert.equal(parsed.items.length, 3);
+  assert.equal(parsed.items[0].name, "Rosuvastatin (Crestor) 冠脂妥 10mg/tab");
+  assert.deepEqual(parsed.items[0].locations, [["P1儲位", "A89"], ["藥庫", "A151"]]);
+  assert.equal(context.csvCell_('a,"b"'), '"a,""b"""');
+  assert.equal(context.csvCell_("line\nbreak"), '"line\nbreak"');
+  assert.equal(context.csvCell_(" A89"), '" A89"');
+  assert.equal(context.csvCell_("A89"), "A89");
+}
+{
+  const { context } = makeRuntime({ props: { ACCESS_TOKEN: "s3cret" } });
+  assert.match(context.doGet({ parameter: { api: "csv" } }).text, /^⚠️ 連結缺少或帶錯存取碼/);
+  assert.match(context.doGet({ parameter: { api: "csv", k: "s3cret" } }).text, /^批價碼,藥名,/);
+}
+{
+  const { context } = makeRuntime({ props: { SHEET_NAME: "儲位" } });
+  assert.match(context.doGet({ parameter: { api: "csv" } }).text, /^⚠️ 找不到工作表 儲位/);
 }
 
 // ACCESS_TOKEN: every entry point requires ?k= once it is set.

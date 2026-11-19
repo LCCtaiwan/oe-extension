@@ -46,7 +46,18 @@ Android 不能安裝 iPhone 的 `.shortcut` 檔。最簡單的做法是：
 
 專案另外有 [`web/` 網頁版](../web/)，它安裝成 Android 網頁 App 後可接收「分享」文字。**那是另一套資料設定**：它需要另行發布 Google Sheet 的 CSV 連結，知道連結的人可能讀到清單。只有資料允許這樣分享時才使用；設定方式見 [README 的 Mobile Web App 章節](../README.md#mobile-web-app-院內查藥)。Chrome 的[分享目標說明](https://developer.chrome.com/docs/capabilities/web-apis/web-share-target)也指出，網頁 App 要先安裝，才會出現在分享清單。
 
-## 5. 給 agent 的完成檢查
+## 5. Chrome 擴充功能：從 GAS 同步私人試算表
+
+試算表不公開（例如含白名單、異動紀錄的中央資料表）時，擴充功能不直接讀試算表，而是讀自己的 GAS：
+
+1. GAS 的 **指令碼屬性** 設 `SPREADSHEET_ID`（中央試算表的 ID）與 `SHEET_NAME`（藥品分頁名稱，例如 `儲位`）；部署存取範圍設 **所有人**，並設定 `ACCESS_TOKEN`。
+2. 更新部署（**管理部署作業 → 編輯 → 新版本**），否則舊版沒有 `?api=csv`。
+3. 先用瀏覽器開 `你的 /exec 網址?api=csv&k=你的存取碼`，應看到以 `批價碼,藥名,` 開頭的 CSV；看到 `⚠️` 開頭代表設定有誤，訊息會寫原因。
+4. 擴充功能 **設定 → 院內品項 → Google 試算表連結** 貼上同一個網址，按 **儲存並同步**。
+
+`狀態` 欄為 `停用` 的品項，手機頁與擴充功能都不會列出。只有藥品分頁會被讀出；白名單、異動紀錄等其他分頁不會經過這個網址。試算表 ID、`/exec` 網址與存取碼都只放在 GAS 設定與自己的瀏覽器，不要提交到 GitHub。
+
+## 6. 給 agent 的完成檢查
 
 可以把下面這段交給有權操作你的 Google 帳號的 agent，並附上**你自己的**藥表連結：
 

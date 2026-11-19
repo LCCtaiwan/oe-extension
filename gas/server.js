@@ -16,6 +16,9 @@
 //   ACCESS_TOKEN     optional — required as ?k= on every call once set (needed
 //                    when the deployment is open to 所有人 for the Shortcut)
 //
+// ?api=csv&k=… returns the formulary tab as CSV, so the Chrome extension can
+// sync from this deployment (its 院內清單 link) while the sheet stays private.
+//
 // Custom prompt buttons come from a tab named 自訂提示 with header row
 // 名稱 | 提示 (up to 6 rows), the phone equivalent of the extension's options.
 
@@ -52,6 +55,9 @@ var ATC_GUESS_INSTRUCTION =
 // Shortcut (shown as a pop-up over the current app); anything else is the page.
 function doGet(e) {
   var params = (e && e.parameter) || {};
+  if (params.api === "csv") {
+    return ContentService.createTextOutput(formularyCsv_(params.k)).setMimeType(ContentService.MimeType.CSV);
+  }
   if (params.api) {
     return ContentService.createTextOutput(handleApi_(params)).setMimeType(ContentService.MimeType.TEXT);
   }
@@ -429,14 +435,38 @@ function spreadsheet_() {
   return spreadsheet;
 }
 
-function readFormulary_() {
+function formularyRows_() {
   var spreadsheet = spreadsheet_();
   var sheetName = PropertiesService.getScriptProperties().getProperty("SHEET_NAME");
   var sheet = sheetName ? spreadsheet.getSheetByName(sheetName) : spreadsheet.getSheets()[0];
   if (!sheet) {
     throw new Error("找不到工作表 " + sheetName);
   }
-  return OEFormulary.rowsToFormulary(sheet.getDataRange().getDisplayValues());
+  return sheet.getDataRange().getDisplayValues();
+}
+
+function readFormulary_() {
+  return OEFormulary.rowsToFormulary(formularyRows_());
+}
+
+// The formulary tab as CSV for the extension. Errors come back as one line
+// starting with ⚠️ so the extension can show the reason instead of a parse error.
+function formularyCsv_(token) {
+  try {
+    checkToken_(token);
+    return formularyRows_()
+      .map(function (row) {
+        return row.map(csvCell_).join(",");
+      })
+      .join("\r\n");
+  } catch (error) {
+    return "⚠️ " + (error && error.message ? error.message : error);
+  }
+}
+
+function csvCell_(value) {
+  var text = String(value == null ? "" : value);
+  return /[",\r\n]|^\s|\s$/.test(text) ? '"' + text.replace(/"/g, '""') + '"' : text;
 }
 
 // Reading a big sheet takes seconds, so the parsed list is kept in the script

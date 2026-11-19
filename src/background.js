@@ -346,7 +346,16 @@ async function syncFormularyFromUrl() {
 		if (!response.ok) {
 			throw new Error(`HTTP ${response.status}`);
 		}
-		const parsed = OEFormulary.parseFormularyText(await response.text());
+		const text = await response.text();
+		// The 院內查藥 GAS (?api=csv) reports its errors as one ⚠️ line.
+		if (text.startsWith("⚠️")) {
+			throw new Error(text.slice(2).trim() || "GAS 回傳錯誤");
+		}
+		// A GAS deployment that needs sign-in answers 200 with a login page.
+		if (/^\s*<(?:!doctype|html)/i.test(text)) {
+			throw new Error("連結回傳網頁而不是清單：GAS 部署需設為「所有人」並加上 k= 存取碼");
+		}
+		const parsed = OEFormulary.parseFormularyText(text);
 		if (parsed.items.length === 0) {
 			throw new Error("清單裡沒有任何品項");
 		}
