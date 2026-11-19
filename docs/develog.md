@@ -53,6 +53,10 @@ make build        # 先測試再打包
   SPREADSHEET_ID＋SHEET_NAME=儲位＋ACCESS_TOKEN，部署「所有人」）。部署資訊在 `.gas-deploy/DEPLOY.md`。
   個人帳號另有一個未部署的空殼專案（`.gas-deploy/.clasp.personal.json`）。
 
+- 2026-11-20：新增 `docs/install-guide.html` 同仁安裝教學（Chrome／iPhone／Android、疑難排解）；不含任何網址或存取碼，
+  同仁貼上管理者給的連結後在瀏覽器端產生三種網址；管理者也可傳 `install-guide.html#<連結>` 自動帶入。
+  已在桌面與手機寬度（375px、深色）檢查，無橫向捲動，連結產生與錯誤提示正常。
+
 ## Verification Status
 
 - 已驗（2026-11-20，curl）：`?api=csv` 200，1529 列；擴充功能解析器得 1511 項（排除停用 18），1387 項有 ATC，無缺欄；
