@@ -2,8 +2,8 @@
 
 ## Current Goal
 
-尚未指定新任務。本 repo 為 `htlin222/oe-extension` 的個人副本（`lcctaiwan/oe-extension`），
-目前以 `main`（v0.1.8）為基準，待決定接下來要開發或合併的方向。
+建立中央資料：院內查藥（GAS 手機頁、iPhone 捷徑、Chrome 擴充功能）統一讀「藥品儲位查詢中央資料」Google Sheet。
+本 repo 為 `htlin222/oe-extension` 的個人副本（`lcctaiwan/oe-extension`，PUBLIC）。工作分支 `air/central-sheet`（基於 `air/fast-gas-shortcut-page`）。
 
 ## Stack And Run Commands
 
@@ -30,6 +30,7 @@ make build        # 先測試再打包
 
 - Groq API key 只存在 `chrome.storage.local`，不得寫入 repo 或打包檔。
 - 版本號需同時更新 `manifest.json` 與 `package.json`（release workflow 會驗證）。
+- 中央 Sheet 為私人；ID、`/exec` 網址、存取碼、帳號資訊只放 `.gas-deploy/DEPLOY.md`（gitignored）與 GAS 指令碼屬性，不進 repo。
 - 雙機分支規則：Air 用 `air/<主題>`、Mac mini 用 `mini/<主題>`；不直接改 `main`。
 
 ## Branches（2026-11-19 盤點）
@@ -46,11 +47,24 @@ make build        # 先測試再打包
 - 2026-11-19（air）：clone 到 `Desktop/PGY許願池/openevidence extention`；`npm test` 13/13 通過；
   建立本 develog（分支 `air/develog`）。
 
+- 2026-11-20（air，`air/central-sheet`，4f92df0）：決策＝擴充功能經 GAS 讀私人中央 Sheet（不公開 Sheet）；
+  共用解析器略過「狀態＝停用」；GAS 新增 `?api=csv&k=`；擴充功能顯示 GAS ⚠️ 錯誤與登入頁錯誤；文件更新。測試 15/15。
+- 2026-11-20：GAS「院內查藥 OE（中央資料）」以 clasp 建在門診藥局帳號（standalone，
+  SPREADSHEET_ID＋SHEET_NAME=儲位＋ACCESS_TOKEN，部署「所有人」）。部署資訊在 `.gas-deploy/DEPLOY.md`。
+  個人帳號另有一個未部署的空殼專案（`.gas-deploy/.clasp.personal.json`）。
+
+## Verification Status
+
+- 已驗（2026-11-20，curl）：`?api=csv` 200，1529 列；擴充功能解析器得 1511 項（排除停用 18），1387 項有 ATC，無缺欄；
+  `?api=lookup` 正常回院內品項與儲位；無 k= 回 ⚠️ 存取碼錯誤；`?k=` 頁面 200。
+- 未驗：Chrome 擴充功能實際貼網址同步；iPhone 捷徑改新網址後實機查藥。
+
 ## Current Checkpoint
 
-`main` 乾淨、測試通過；三條功能分支皆未合併回 `main`。
+GAS 已部署並驗證；待使用者在擴充功能與 iPhone 捷徑換上新網址。
 
 ## Recommended Next Step
 
-決定是否要把 `feature/hospital-formulary` → `feature/gas-mobile` → `air/fast-gas-shortcut-page`
-這條院內查藥線整理後合併回 `main`，或另開新功能。
+1. 擴充功能：設定 → 院內品項 → 貼 DEPLOY.md 的 CSV 網址 → 儲存並同步。
+2. iPhone 捷徑 URL 改成 DEPLOY.md 所列網址並實機測試。
+3. 決定是否刪除個人帳號的空殼 GAS；之後再決定院內查藥線是否合併回 `main`（需先問）。
