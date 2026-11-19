@@ -156,12 +156,12 @@ footer { padding: 40px 0 64px; color: var(--ink-3); font-size: 13px; }
 
 <section id="link">
   <h2><span class="num">01</span>先取得你的專屬連結</h2>
-  <p class="sub">向藥局管理者索取「院內查藥」連結，格式是 <code>https://script.google.com/macros/s/…/exec?k=…</code>。貼在下面，本頁會產生各裝置要用的網址（只在你的瀏覽器裡計算，不會送出）。</p>
+  <p class="sub">向藥局管理者索取「院內查藥」連結，格式是 <code>https://script.google.com/macros/s/…/exec</code>。貼在下面，本頁會產生各裝置要用的網址（只在你的瀏覽器裡計算，不會送出）。</p>
 
   <div class="linkbox">
     <label for="base">管理者給的連結</label>
     <div class="row">
-      <input id="base" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://script.google.com/macros/s/…/exec?k=…">
+      <input id="base" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://script.google.com/macros/s/…/exec">
       <button type="button" id="make">產生網址</button>
     </div>
     <p class="err" id="err" role="alert"></p>
@@ -171,7 +171,7 @@ footer { padding: 40px 0 64px; color: var(--ink-3); font-size: 13px; }
       <div class="out empty" data-out="ios"><div class="k"><span>iPhone 捷徑的「URL」動作（後面接已編碼文字）</span><button type="button" class="ghost" data-copy="ios" disabled>複製</button></div><div class="v">貼上連結後產生</div></div>
     </div>
   </div>
-  <div class="note warn">連結裡的 <code>k=</code> 是存取碼，拿到連結的人都能查詢院內清單。請只在同仁之間傳，不要貼到公開群組、網站或 GitHub。</div>
+  <div class="note warn">拿到這個網址的人都能查詢院內清單。請只在同仁之間傳，不要貼到公開群組、網站或 GitHub。</div>
 </section>
 
 <section id="chrome">
@@ -202,7 +202,7 @@ footer { padding: 40px 0 64px; color: var(--ink-3); font-size: 13px; }
     <li><b>新增捷徑</b><p>打開「捷徑」App → 右上角 <kbd>＋</kbd>，名稱取「院內查藥」。</p></li>
     <li><b>讓它出現在分享選單</b><p>點下方 ⓘ（或捷徑名稱旁的選單）→ 打開「在分享表單中顯示」，接收類型只留「文字」。</p></li>
     <li><b>動作一：URL 編碼</b><p>搜尋「URL 編碼」加入，輸入選「捷徑輸入」，模式為「編碼」。</p></li>
-    <li><b>動作二：URL</b><p>搜尋「URL」加入，貼上第 1 步產生的 <b>iPhone 網址</b>（結尾是 <code>&amp;q=</code>）。游標放在最後，點鍵盤上方的變數列，插入「已編碼文字」。</p></li>
+    <li><b>動作二：URL</b><p>搜尋「URL」加入，貼上第 1 步產生的 <b>iPhone 網址</b>（結尾是 <code>?q=</code>）。游標放在最後，點鍵盤上方的變數列，插入「已編碼文字」。</p></li>
     <li><b>動作三：顯示網頁顯示方式</b><p>搜尋「顯示網頁」（英文介面為 Show Web View）加入，輸入選上一步的「URL」。<b>不要</b>用「打開 URL」，那會跳到瀏覽器。</p></li>
     <li><b>測試</b><p>在備忘錄打「rosuvastatin」→ 選取 → 分享 → 院內查藥。第一次會問是否允許連線到 script.google.com，選「允許」。看到院內結果就完成了；關掉視窗會回到原 App。</p></li>
   </ol>
@@ -238,8 +238,7 @@ footer { padding: 40px 0 64px; color: var(--ink-3); font-size: 13px; }
   <table>
     <thead><tr><th>看到的狀況</th><th>處理方式</th></tr></thead>
     <tbody>
-      <tr><td>⚠️ 連結缺少或帶錯存取碼（k=）</td><td>網址少了 <code>k=…</code> 或存取碼已更換。向管理者要新連結，回第 1 步重新產生。</td></tr>
-      <tr><td>連結回傳網頁而不是清單</td><td>擴充功能貼成了手機頁網址，或部署權限不是「所有人」。確認貼的是含 <code>api=csv</code> 的那一條；仍失敗請告知管理者。</td></tr>
+            <tr><td>連結回傳網頁而不是清單</td><td>擴充功能貼成了手機頁網址，或部署權限不是「所有人」。確認貼的是含 <code>api=csv</code> 的那一條；仍失敗請告知管理者。</td></tr>
       <tr><td>找不到「藥名」欄位</td><td>貼到的不是本服務的網址。重新複製第 1 步的擴充功能網址。</td></tr>
       <tr><td>Chrome 選取後沒出現工具列</td><td>該網站不在白名單：選項 → Settings → Whitelisted websites 加入網址前綴。Chrome 內建 PDF 檢視器常不出現工具列，可把文字貼到手機查藥頁，或用右鍵「Ask OpenEvidence」。</td></tr>
       <tr><td>iPhone 捷徑跳到瀏覽器</td><td>最後一個動作用了「打開 URL」，改成「顯示網頁顯示方式」。</td></tr>
@@ -269,14 +268,14 @@ footer { padding: 40px 0 64px; color: var(--ink-3); font-size: 13px; }
     if (url.hostname !== "script.google.com" || !/\/macros\/s\/[\w-]+\/exec$/.test(url.pathname)) {
       return { error: "網址要是 script.google.com/macros/s/…/exec 開頭，請確認是管理者給的連結。" };
     }
+    // 有存取碼（k=）就一併帶上；沒有就用純網址。
     var k = url.searchParams.get("k");
-    if (!k) { return { error: "連結裡沒有 k=（存取碼），請向管理者要完整的連結。" }; }
     var exec = url.origin + url.pathname;
-    var ek = encodeURIComponent(k);
+    var kq = k ? "k=" + encodeURIComponent(k) : "";
     return {
-      page: exec + "?k=" + ek,
-      csv: exec + "?api=csv&k=" + ek,
-      ios: exec + "?k=" + ek + "&q="
+      page: exec + (kq ? "?" + kq : ""),
+      csv: exec + "?api=csv" + (kq ? "&" + kq : ""),
+      ios: exec + "?" + (kq ? kq + "&" : "") + "q="
     };
   }
 

@@ -50,12 +50,16 @@ make build        # 先測試再打包
 - 2026-11-20（air，`air/central-sheet`，4f92df0）：決策＝擴充功能經 GAS 讀私人中央 Sheet（不公開 Sheet）；
   共用解析器略過「狀態＝停用」；GAS 新增 `?api=csv&k=`；擴充功能顯示 GAS ⚠️ 錯誤與登入頁錯誤；文件更新。測試 15/15。
 - 2026-11-20：GAS「院內查藥 OE（中央資料）」以 clasp 建在門診藥局帳號（standalone，
-  SPREADSHEET_ID＋SHEET_NAME=儲位＋ACCESS_TOKEN，部署「所有人」）。部署資訊在 `.gas-deploy/DEPLOY.md`。
+  SPREADSHEET_ID＋SHEET_NAME=儲位，部署「所有人」；ACCESS_TOKEN 已移除）。部署資訊在 `.gas-deploy/DEPLOY.md`。
   個人帳號另有一個未部署的空殼專案（`.gas-deploy/.clasp.personal.json`）。
 
 - 2026-11-20：新增 `docs/install-guide.html` 同仁安裝教學（Chrome／iPhone／Android、疑難排解）；不含任何網址或存取碼，
   同仁貼上管理者給的連結後在瀏覽器端產生三種網址；管理者也可傳 `install-guide.html#<連結>` 自動帶入。
   已在桌面與手機寬度（375px、深色）檢查，無橫向捲動，連結產生與錯誤提示正常。
+
+- 2026-11-20：依使用者決定移除 ACCESS_TOKEN（GAS 不再檢查 k=，拿到 /exec 網址即可查）；教學頁的 k= 改為選填。
+  發布的教學頁改用內建網址的本機版（`.gas-deploy/install-guide.private.html`），repo 版仍不含網址。
+  驗證：無 k= 時 `?api=csv` 解析 1511 項、`?api=lookup` 正常。
 
 ## Verification Status
 
