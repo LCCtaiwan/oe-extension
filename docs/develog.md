@@ -68,7 +68,8 @@ make build        # 先測試再打包
 
 - 已驗（2026-11-20，curl）：`?api=csv` 200，1529 列；擴充功能解析器得 1511 項（排除停用 18），1387 項有 ATC，無缺欄；
   `?api=lookup` 正常回院內品項與儲位；無 k= 回 ⚠️ 存取碼錯誤；`?k=` 頁面 200。
-- 未驗：Chrome 擴充功能實際貼網址同步；iPhone 捷徑改新網址後實機查藥。
+- 已驗（2026-11-20）：產生並以 `shortcuts sign --mode anyone` 簽章的 iPhone 捷徑，Mac 匯入確認動作正確，iPhone 實機查藥成功。捷徑包成 zip 內嵌於發布教學頁。
+- 未驗：Chrome 擴充功能實際貼網址同步；教學頁兩顆下載按鈕實際下載。
 
 ## Current Checkpoint
 
@@ -77,5 +78,4 @@ GAS 已部署並驗證；待使用者在擴充功能與 iPhone 捷徑換上新�
 ## Recommended Next Step
 
 1. 擴充功能：設定 → 院內品項 → 貼 DEPLOY.md 的 CSV 網址 → 儲存並同步。
-2. iPhone 捷徑 URL 改成 DEPLOY.md 所列網址並實機測試。
 3. 決定是否刪除個人帳號的空殼 GAS；之後再決定院內查藥線是否合併回 `main`（需先問）。
