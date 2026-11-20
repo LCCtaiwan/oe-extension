@@ -61,6 +61,9 @@ make build        # 先測試再打包
   發布的教學頁改用內建網址的本機版（`.gas-deploy/install-guide.private.html`），repo 版仍不含網址。
   驗證：無 k= 時 `?api=csv` 解析 1511 項、`?api=lookup` 正常。
 
+- 2026-11-20：擴充功能 zip（v0.1.9，67 KB，不含網址）內嵌於發布的教學頁，按鈕經 artifact `downloads` 能力下載；
+  repo 版教學仍寫「向管理者拿 zip」。改版需重建 zip 並重新發布教學頁。
+
 ## Verification Status
 
 - 已驗（2026-11-20，curl）：`?api=csv` 200，1529 列；擴充功能解析器得 1511 項（排除停用 18），1387 項有 ATC，無缺欄；
